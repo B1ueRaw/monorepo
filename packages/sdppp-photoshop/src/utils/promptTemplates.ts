@@ -81,7 +81,7 @@ export function createComfyPromptInjection(
         const node = promptNode(orderedNodes, role)
         if (!node) return
         const widgetIndex = node.widgets!.findIndex(widget => ['string', 'text'].includes(widget.outputType?.toLowerCase() ?? ''))
-        const current = values?.[node.id]?.[widgetIndex]
+        const current = values?.[node.id]?.[widgetIndex] ?? ''
         if (typeof current !== 'string') return
         const value = templatePrompt?.trim() ? mergePrompt(templatePrompt, current) : current.trim()
         prompts[role] = value

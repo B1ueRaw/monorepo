@@ -54,7 +54,7 @@ describe('prompt template injection', () => {
             { nodes: {
                 '50': { id: '50', title: '#05-提示词', widgets: [{ outputType: 'string' }] },
             } },
-            { '50': [''] },
+            { '50': [undefined] },
             template,
         )
         expect(visiblePrompt.updates).toEqual([{ nodeID: '50', widgetIndex: 0, value: 'cinematic' }])
