@@ -164,9 +164,8 @@ export const MainStore = create<{
             return {
                 previewError: '',
                 previewImageList: replaceExisting ? [nextItem] : [...state.previewImageList, nextItem],
-                // ponytail: thumbnails only, capped to keep plugin storage bounded.
                 generationHistory: historyItem
-                    ? [historyItem, ...state.generationHistory].slice(0, 20)
+                    ? [historyItem, ...state.generationHistory]
                     : state.generationHistory,
             }
         })
