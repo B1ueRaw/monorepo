@@ -49,5 +49,14 @@ describe('prompt template injection', () => {
             prompt: 'portrait',
             negativePrompt: 'bad anatomy',
         })
+
+        const visiblePrompt = createComfyPromptInjection(
+            { nodes: {
+                '50': { id: '50', title: '#05-提示词', widgets: [{ outputType: 'string' }] },
+            } },
+            { '50': [''] },
+            template,
+        )
+        expect(visiblePrompt.updates).toEqual([{ nodeID: '50', widgetIndex: 0, value: 'cinematic' }])
     })
 })

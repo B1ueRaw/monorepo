@@ -94,6 +94,7 @@ export const enUS = {
   'comfy_simple.prompt_templates.apply_failed_caller_unavailable': 'Failed to update the {{part}} prompt: ComfyUI connection is not ready.',
   'comfy_simple.prompt_templates.apply_failed_set_error': 'Failed to update the {{part}} prompt. Please try again.',
   'common.delete': 'Delete',
+  'common.apply': 'Apply',
   'comfy_simple.preview_click_to_send': 'Click to send (Shift-click creates new document)',
   'comfy_simple.workflow_select.empty': 'No workflows available.',
   'comfy_simple.workflow_select.select': 'Select',

@@ -104,52 +104,50 @@ export class ComfyTask {
                 await sdpppSDK.plugins.ComfyCaller.setWidgetValue({ values: injection.updates });
             }
 
-            let result;
+            const images: any[] = [];
+            let processedCount = 0;
             try {
-                result = await sdpppSDK.plugins.ComfyCaller.run(runParams);
+                const result = await sdpppSDK.plugins.ComfyCaller.run(runParams);
+                for await (const item of result) {
+                    if (this.cancelled) {
+                        throw new Error(t('comfy.error.task_cancelled', { defaultValue: 'Task cancelled' }));
+                    }
+
+                    processedCount++;
+                    this.progress = Math.min((processedCount / runParams.size) * 100, 95);
+                    this.progressMessage = t('comfy.task.processing_progress', {
+                        processed: processedCount,
+                        total: runParams.size,
+                        defaultValue: 'Processing {{processed}}/{{total}}'
+                    });
+
+                    await this.updatePhotoshopProgress();
+
+                    if (item.images) {
+                        images.push(...item.images);
+                        for (const image of item.images) {
+                            await this.handleImageResult(image, {
+                                workflowName,
+                                docId: this.docId,
+                                boundaryUri: this.boundaryUri,
+                                maskUri: this.maskUri,
+                                replaceExisting: this.replaceExisting,
+                                history: {
+                                    prompt: injection.prompt,
+                                    negativePrompt: injection.negativePrompt,
+                                    templateName: template?.name,
+                                    source: workflowName,
+                                },
+                            });
+                        }
+                    }
+                }
             } finally {
                 if (injection.restore.length) {
                     try {
                         await sdpppSDK.plugins.ComfyCaller.setWidgetValue({ values: injection.restore });
                     } catch (error) {
                         console.warn('Failed to restore ComfyUI prompt values:', error);
-                    }
-                }
-            }
-            const images: any[] = [];
-            let processedCount = 0;
-
-            for await (const item of result) {
-                if (this.cancelled) {
-                    throw new Error(t('comfy.error.task_cancelled', { defaultValue: 'Task cancelled' }));
-                }
-
-                processedCount++;
-                this.progress = Math.min((processedCount / runParams.size) * 100, 95);
-                this.progressMessage = t('comfy.task.processing_progress', {
-                    processed: processedCount,
-                    total: runParams.size,
-                    defaultValue: 'Processing {{processed}}/{{total}}'
-                });
-
-                await this.updatePhotoshopProgress();
-
-                if (item.images) {
-                    images.push(...item.images);
-                    for (const image of item.images) {
-                        await this.handleImageResult(image, {
-                            workflowName,
-                            docId: this.docId,
-                            boundaryUri: this.boundaryUri,
-                            maskUri: this.maskUri,
-                            replaceExisting: this.replaceExisting,
-                            history: {
-                                prompt: injection.prompt,
-                                negativePrompt: injection.negativePrompt,
-                                templateName: template?.name,
-                                source: workflowName,
-                            },
-                        });
                     }
                 }
             }

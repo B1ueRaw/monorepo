@@ -1,8 +1,11 @@
 import { Button, Flex, Form, Input, List, Modal, Popconfirm, Select, Tag, Tooltip, Typography } from 'antd'
 import { History as HistoryIcon, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { useTranslation } from '@sdppp/common'
-import type { PromptTemplate } from '../../utils/promptTemplates'
+import { sdpppSDK, useTranslation } from '@sdppp/common'
+import { createComfyPromptInjection, getPromptSnapshot, injectPromptTemplate, type PromptTemplate } from '../../utils/promptTemplates'
+import { customapiStore } from '../../providers/_customapi/renderer/customapi.store'
+import { replicateStore } from '../../providers/_replicate/renderer/replicate.store'
+import { runninghubStore } from '../../providers/_runninghub/renderer/runninghub.store'
 import { MainStore } from '../App.store'
 
 type TemplateForm = Pick<PromptTemplate, 'name' | 'prompt' | 'negativePrompt'>
@@ -15,6 +18,8 @@ export function PromptTemplateSelector() {
     const history = MainStore(state => state.generationHistory)
     const [editing, setEditing] = useState<PromptTemplate | null>()
     const [historyOpen, setHistoryOpen] = useState(false)
+    const [applying, setApplying] = useState(false)
+    const [applyError, setApplyError] = useState('')
     const [form] = Form.useForm<TemplateForm>()
 
     if (!provider) return null
@@ -54,6 +59,40 @@ export function PromptTemplateSelector() {
 
     const selected = templates.find(template => template.id === selectedId)
 
+    const apply = async () => {
+        if (!selected) return
+        setApplying(true)
+        setApplyError('')
+        try {
+            if (provider === 'ComfyUI') {
+                const state = sdpppSDK.stores.ComfyStore.getState()
+                const injection = createComfyPromptInjection(state.widgetableStructure, state.widgetableValues, selected)
+                if (!injection.updates.length) throw new Error(t('comfy_simple.prompt_templates.apply_failed_missing_binding', {
+                    part: t('comfy_simple.prompt_templates.positive_label'),
+                }))
+                await sdpppSDK.plugins.ComfyCaller.setWidgetValue({ values: injection.updates })
+                return
+            }
+
+            const store = provider === 'CustomAPI' ? customapiStore
+                : provider === 'Replicate' ? replicateStore
+                    : provider === 'RunningHub' ? runninghubStore
+                        : null
+            if (!store) throw new Error(t('comfy_simple.prompt_templates.apply_unavailable'))
+
+            const state = store.getState()
+            const values = injectPromptTemplate(state.currentValues, state.currentNodes, selected)
+            if (!getPromptSnapshot(values, state.currentNodes).prompt) throw new Error(t('comfy_simple.prompt_templates.apply_failed_missing_binding', {
+                part: t('comfy_simple.prompt_templates.positive_label'),
+            }))
+            state.setCurrentValues(values)
+        } catch (error) {
+            setApplyError(error instanceof Error ? error.message : t('comfy_simple.prompt_templates.applied_failed'))
+        } finally {
+            setApplying(false)
+        }
+    }
+
     return (
         <>
             <Flex gap={4} style={{ marginBottom: 8 }}>
@@ -62,9 +101,15 @@ export function PromptTemplateSelector() {
                     value={selectedId || undefined}
                     placeholder={t('comfy_simple.prompt_templates.modal_title')}
                     options={templates.map(template => ({ label: template.name, value: template.id }))}
-                    onChange={value => MainStore.setState({ selectedPromptTemplateId: value ?? '' })}
+                    onChange={value => {
+                        setApplyError('')
+                        MainStore.setState({ selectedPromptTemplateId: value ?? '' })
+                    }}
                     style={{ flex: 1 }}
                 />
+                <Button type="primary" loading={applying} disabled={!selected} onClick={apply}>
+                    {t('common.apply')}
+                </Button>
                 <Tooltip title={t('comfy_simple.prompt_templates.add_title')}>
                     <Button icon={<Plus size={16} />} onClick={() => openEditor(null)} />
                 </Tooltip>
@@ -90,6 +135,7 @@ export function PromptTemplateSelector() {
                     />
                 </Tooltip>
             </Flex>
+            {applyError ? <Typography.Text type="danger" style={{ display: 'block', marginBottom: 8 }}>{applyError}</Typography.Text> : null}
             <Modal
                 open={editing !== undefined}
                 title={t(editing ? 'comfy_simple.prompt_templates.edit_title' : 'comfy_simple.prompt_templates.add_title')}

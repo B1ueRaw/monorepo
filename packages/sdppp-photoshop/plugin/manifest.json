@@ -1,7 +1,7 @@
 {
   "id": "sd-ppp2-dev",
   "name": "SD-PPP",
-  "version": "1.9.21",
+  "version": "1.9.22",
   "main": "sdppp/photoshop.html",
   "manifestVersion": 5,
   "host": {

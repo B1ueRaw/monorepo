@@ -94,6 +94,7 @@ export const zhCN = {
   'comfy_simple.prompt_templates.apply_failed_caller_unavailable': '无法写入{{part}}提示词：ComfyUI 尚未就绪。',
   'comfy_simple.prompt_templates.apply_failed_set_error': '无法写入{{part}}提示词，请稍后重试。',
   'common.delete': '删除',
+  'common.apply': '应用',
   'comfy_simple.preview_click_to_send': '点击发送（Shift-点击新建文档）',
   'comfy_simple.workflow_select.empty': '暂无可用工作流。',
   'comfy_simple.workflow_select.select': '选择',
