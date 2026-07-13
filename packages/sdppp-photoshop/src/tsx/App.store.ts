@@ -6,6 +6,7 @@ import type { ResourceHandle } from '@sdppp/resourcing/src/@sideweb/resource-han
 import { createFileResourceFromExternal } from '@sdppp/resourcing/src/@sideweb/file-resource-actions'
 import { loadRemoteConfig } from '@sdppp/vite-remote-config-loader'
 import { buildBoundaryUri } from '@sdppp/resourcing/src/resource-uris'
+import type { PromptTemplate } from '../utils/promptTemplates'
 
 export type SendMode = 'smartobject' | 'newdoc' | 'selection';
 
@@ -32,6 +33,8 @@ export const MainStore = create<{
     autoSendMode: SendMode | null
     autoSendSending: boolean
     autoSendSendingAll: boolean
+    promptTemplates: PromptTemplate[]
+    selectedPromptTemplateId: string
     downloadAndAppendImage: (image: {
         url: string,
         source: string,
@@ -53,6 +56,8 @@ export const MainStore = create<{
     autoSendMode: null,
     autoSendSending: false,
     autoSendSendingAll: false,
+    promptTemplates: [],
+    selectedPromptTemplateId: '',
     previewImageList: [
     ],
     downloadAndAppendImage: async (
@@ -218,6 +223,8 @@ export const MainStore = create<{
     partialize: (state) => ({
         provider: state.provider,
         autoSendMode: state.autoSendMode,
+        promptTemplates: state.promptTemplates,
+        selectedPromptTemplateId: state.selectedPromptTemplateId,
     }),
     onRehydrateStorage: () => (state) => {
         if (state?.previewImageList) {

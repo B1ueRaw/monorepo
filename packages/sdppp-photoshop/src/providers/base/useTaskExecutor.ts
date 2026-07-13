@@ -3,6 +3,7 @@ import { buildBoundaryUri } from '@sdppp/resourcing/src/resource-uris';
 import { useEffect, useState } from 'react';
 import { MainStore } from '../../tsx/App.store';
 import { useUploadPasses } from './upload-pass-context';
+import { injectPromptTemplate } from '../../utils/promptTemplates';
 
 export interface UseTaskExecutorOptions {
     selectedModel: string;
@@ -10,6 +11,7 @@ export interface UseTaskExecutorOptions {
     getCurrentValues?: () => any;
     createTask: (model: string, values: any) => Promise<any>;
     runningTasks: any[];
+    currentNodes?: any[];
     beforeCreateTaskHook: (values: any) => any;
 }
 
@@ -19,6 +21,7 @@ export function useTaskExecutor({
     getCurrentValues,
     createTask,
     runningTasks,
+    currentNodes = [],
     beforeCreateTaskHook
 }: UseTaskExecutorOptions) {
     const [runError, setRunError] = useState<string>('');
@@ -78,7 +81,10 @@ export function useTaskExecutor({
         
         // 在创建任务前调用 hook 来修改 currentValues
         const liveValues = getCurrentValues ? getCurrentValues() : currentValues;
-        const finalValues = beforeCreateTaskHook ? beforeCreateTaskHook(liveValues) : liveValues;
+        const processedValues = beforeCreateTaskHook ? beforeCreateTaskHook(liveValues) : liveValues;
+        const promptState = MainStore.getState();
+        const template = promptState.promptTemplates.find(item => item.id === promptState.selectedPromptTemplateId);
+        const finalValues = injectPromptTemplate(processedValues, currentNodes, template);
         
         try {
             const task = await createTask(selectedModel, finalValues);

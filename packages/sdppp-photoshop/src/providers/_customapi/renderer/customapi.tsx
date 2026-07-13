@@ -168,6 +168,7 @@ function CustomAPIRendererForm() {
         getCurrentValues: () => customapiStore.getState().currentValues,
         createTask,
         runningTasks,
+        currentNodes,
         beforeCreateTaskHook: (values) => {
             // Process image fields, extract URL from objects
             const processedValues = { ...values };

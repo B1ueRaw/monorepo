@@ -163,6 +163,7 @@ function ReplicateRendererForm({
         getCurrentValues: () => replicateStore.getState().currentValues,
         createTask,
         runningTasks,
+        currentNodes,
         beforeCreateTaskHook: (values) => {
             // Process image fields to extract URLs
             const processedValues = { ...values };

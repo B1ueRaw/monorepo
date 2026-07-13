@@ -9,6 +9,7 @@ import { SDPPPGateway } from './gateway/sdppp'
 import { useTranslation, I18nextProvider, i18n } from '@sdppp/common'
 import zhCN from 'antd/locale/zh_CN'
 import enUS from 'antd/locale/en_US'
+import { PromptTemplateSelector } from './components/PromptTemplateSelector'
 
  
 
@@ -128,6 +129,7 @@ function AppContent({ psTheme, showingPreview, previewImageList, fontSize }: {
             {
                 showingPreview ? <ImagePreviewWrapper /> : null
             }
+            {!showingPreview ? <PromptTemplateSelector /> : null}
             <SDPPPGateway />
         </ConfigProvider>
     </div>

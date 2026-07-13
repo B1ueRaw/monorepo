@@ -1,5 +1,6 @@
 import { sdpppSDK, t } from '@sdppp/common';
 import { MainStore } from '../../tsx/App.store';
+import { createComfyPromptInjection } from '../../utils/promptTemplates';
 
 export interface ComfyTaskImageContext {
     workflowName: string;
@@ -88,7 +89,30 @@ export class ComfyTask {
 
     private async executeComfyTask(runParams: { size: number, mode?: 'app' | 'api' }, workflowName: string): Promise<any[]> {
         try {
-            const result = await sdpppSDK.plugins.ComfyCaller.run(runParams);
+            const promptState = MainStore.getState();
+            const template = promptState.promptTemplates.find(item => item.id === promptState.selectedPromptTemplateId);
+            const comfyState = sdpppSDK.stores.ComfyStore.getState();
+            const injection = createComfyPromptInjection(
+                comfyState.widgetableStructure,
+                comfyState.widgetableValues,
+                template,
+            );
+            if (injection.updates.length) {
+                await sdpppSDK.plugins.ComfyCaller.setWidgetValue({ values: injection.updates });
+            }
+
+            let result;
+            try {
+                result = await sdpppSDK.plugins.ComfyCaller.run(runParams);
+            } finally {
+                if (injection.restore.length) {
+                    try {
+                        await sdpppSDK.plugins.ComfyCaller.setWidgetValue({ values: injection.restore });
+                    } catch (error) {
+                        console.warn('Failed to restore ComfyUI prompt values:', error);
+                    }
+                }
+            }
             const images: any[] = [];
             let processedCount = 0;
 

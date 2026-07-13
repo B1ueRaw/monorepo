@@ -215,6 +215,7 @@ function RunningHubRendererForm({
         getCurrentValues: () => runninghubStore.getState().currentValues,
         createTask,
         runningTasks,
+        currentNodes,
         beforeCreateTaskHook: (values) => {
             // 处理图片字段，从对象中提取URL
             const processedValues = { ...values };
