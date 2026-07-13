@@ -1,6 +1,10 @@
 export const enUS = {
   // Existing translations (from locales/en-US.ts)
   'preview.show': 'Show Preview ({{count}} images)',
+  'generation_history.title': 'Generation History ({{count}})',
+  'generation_history.empty': 'No generation history yet',
+  'generation_history.template': 'Template: {{name}}',
+  'generation_history.image_alt': 'Generated image from history',
   'gateway.select_ai_service': 'Please select AI service',
   'provider.select.title': 'Select AI Service Provider',
   'provider.comfyui.description': 'Your powerful node-based workflow engine',

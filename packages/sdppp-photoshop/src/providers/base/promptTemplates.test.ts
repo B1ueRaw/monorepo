@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createComfyPromptInjection, injectPromptTemplate } from '../../utils/promptTemplates'
+import { createComfyPromptInjection, getPromptSnapshot, injectPromptTemplate } from '../../utils/promptTemplates'
 
 describe('prompt template injection', () => {
     it('injects API and Comfy prompts without changing stored values', () => {
@@ -10,9 +10,14 @@ describe('prompt template injection', () => {
         ]
         const values = { prompt: 'a cat', negative_prompt: 'watermark' }
 
-        expect(injectPromptTemplate(values, nodes, template)).toEqual({
+        const injected = injectPromptTemplate(values, nodes, template)
+        expect(injected).toEqual({
             prompt: 'cinematic\na cat',
             negative_prompt: 'blurry\nwatermark',
+        })
+        expect(getPromptSnapshot(injected, nodes)).toEqual({
+            prompt: 'cinematic\na cat',
+            negativePrompt: 'blurry\nwatermark',
         })
         expect(values.prompt).toBe('a cat')
 
@@ -26,5 +31,23 @@ describe('prompt template injection', () => {
         )
         expect(comfy.updates.map(item => item.value)).toEqual(['cinematic\nportrait', 'blurry\nbad anatomy'])
         expect(comfy.restore.map(item => item.value)).toEqual(['portrait', 'bad anatomy'])
+        expect({ prompt: comfy.prompt, negativePrompt: comfy.negativePrompt }).toEqual({
+            prompt: 'cinematic\nportrait',
+            negativePrompt: 'blurry\nbad anatomy',
+        })
+
+        const withoutTemplate = createComfyPromptInjection(
+            { nodes: {
+                '25': { id: '25', title: 'Prompt', widgets: [{ outputType: 'string' }] },
+                '26': { id: '26', title: 'Negative Prompt', widgets: [{ outputType: 'string' }] },
+            } },
+            { '25': ['portrait'], '26': ['bad anatomy'] },
+        )
+        expect(withoutTemplate).toMatchObject({
+            updates: [],
+            restore: [],
+            prompt: 'portrait',
+            negativePrompt: 'bad anatomy',
+        })
     })
 })

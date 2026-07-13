@@ -1,5 +1,5 @@
-import { Button, Flex, Form, Input, Modal, Popconfirm, Select, Tooltip } from 'antd'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Button, Flex, Form, Input, List, Modal, Popconfirm, Select, Tag, Tooltip, Typography } from 'antd'
+import { History as HistoryIcon, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from '@sdppp/common'
 import type { PromptTemplate } from '../../utils/promptTemplates'
@@ -12,7 +12,9 @@ export function PromptTemplateSelector() {
     const provider = MainStore(state => state.provider)
     const templates = MainStore(state => state.promptTemplates)
     const selectedId = MainStore(state => state.selectedPromptTemplateId)
+    const history = MainStore(state => state.generationHistory)
     const [editing, setEditing] = useState<PromptTemplate | null>()
+    const [historyOpen, setHistoryOpen] = useState(false)
     const [form] = Form.useForm<TemplateForm>()
 
     if (!provider) return null
@@ -79,6 +81,14 @@ export function PromptTemplateSelector() {
                         <Button danger icon={<Trash2 size={16} />} disabled={!selected} />
                     </Tooltip>
                 </Popconfirm>
+                <Tooltip title={t('generation_history.title', { count: history.length })}>
+                    <Button
+                        aria-label={t('generation_history.title', { count: history.length })}
+                        icon={<HistoryIcon size={16} />}
+                        disabled={!history.length}
+                        onClick={() => setHistoryOpen(true)}
+                    />
+                </Tooltip>
             </Flex>
             <Modal
                 open={editing !== undefined}
@@ -108,6 +118,46 @@ export function PromptTemplateSelector() {
                         <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} />
                     </Form.Item>
                 </Form>
+            </Modal>
+            <Modal
+                open={historyOpen}
+                title={t('generation_history.title', { count: history.length })}
+                footer={null}
+                width={480}
+                onCancel={() => setHistoryOpen(false)}
+            >
+                <List
+                    dataSource={history}
+                    locale={{ emptyText: t('generation_history.empty') }}
+                    style={{ maxHeight: '70vh', overflowY: 'auto' }}
+                    renderItem={item => (
+                        <List.Item key={item.id}>
+                            <Flex vertical gap={8} style={{ width: '100%' }}>
+                                <img
+                                    src={item.image}
+                                    alt={t('generation_history.image_alt')}
+                                    style={{ width: '100%', maxHeight: 360, objectFit: 'contain', borderRadius: 4 }}
+                                />
+                                <Typography.Text type="secondary">
+                                    {new Date(item.createdAt).toLocaleString()} · {item.source}
+                                </Typography.Text>
+                                {item.templateName ? <Tag>{t('generation_history.template', { name: item.templateName })}</Tag> : null}
+                                <Typography.Text strong>{t('comfy_simple.prompt_templates.positive_label')}</Typography.Text>
+                                <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
+                                    {item.prompt}
+                                </Typography.Paragraph>
+                                {item.negativePrompt ? (
+                                    <>
+                                        <Typography.Text strong>{t('comfy_simple.prompt_templates.negative_label')}</Typography.Text>
+                                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
+                                            {item.negativePrompt}
+                                        </Typography.Paragraph>
+                                    </>
+                                ) : null}
+                            </Flex>
+                        </List.Item>
+                    )}
+                />
             </Modal>
         </>
     )

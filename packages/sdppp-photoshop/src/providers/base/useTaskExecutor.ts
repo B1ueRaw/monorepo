@@ -3,7 +3,7 @@ import { buildBoundaryUri } from '@sdppp/resourcing/src/resource-uris';
 import { useEffect, useState } from 'react';
 import { MainStore } from '../../tsx/App.store';
 import { useUploadPasses } from './upload-pass-context';
-import { injectPromptTemplate } from '../../utils/promptTemplates';
+import { getPromptSnapshot, injectPromptTemplate } from '../../utils/promptTemplates';
 
 export interface UseTaskExecutorOptions {
     selectedModel: string;
@@ -85,6 +85,7 @@ export function useTaskExecutor({
         const promptState = MainStore.getState();
         const template = promptState.promptTemplates.find(item => item.id === promptState.selectedPromptTemplateId);
         const finalValues = injectPromptTemplate(processedValues, currentNodes, template);
+        const promptSnapshot = getPromptSnapshot(finalValues, currentNodes);
         
         try {
             const task = await createTask(selectedModel, finalValues);
@@ -101,6 +102,11 @@ export function useTaskExecutor({
                         boundaryUri: boundaryUriAtStart,
                         maskUri: null,
                         maskHandle: null,
+                        history: {
+                            ...promptSnapshot,
+                            templateName: template?.name,
+                            source: selectedModel,
+                        },
                     })));
 
                 } catch (error: any) {

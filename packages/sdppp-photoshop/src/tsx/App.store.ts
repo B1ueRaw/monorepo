@@ -10,6 +10,19 @@ import type { PromptTemplate } from '../utils/promptTemplates'
 
 export type SendMode = 'smartobject' | 'newdoc' | 'selection';
 
+export interface GenerationHistoryInput {
+    prompt: string
+    negativePrompt?: string
+    templateName?: string
+    source: string
+}
+
+export interface GenerationHistoryItem extends GenerationHistoryInput {
+    id: string
+    createdAt: number
+    image: string
+}
+
 export const MainStore = create<{
     provider: (keyof typeof Providers) | ''
     previewImageList: {
@@ -35,6 +48,7 @@ export const MainStore = create<{
     autoSendSendingAll: boolean
     promptTemplates: PromptTemplate[]
     selectedPromptTemplateId: string
+    generationHistory: GenerationHistoryItem[]
     downloadAndAppendImage: (image: {
         url: string,
         source: string,
@@ -43,6 +57,7 @@ export const MainStore = create<{
         boundaryUri?: string | null,
         maskUri?: string | null,
         maskHandle?: ResourceHandle | null
+        history?: GenerationHistoryInput
     }, options?: { replaceExisting?: boolean }) => Promise<void>
     deletePreviewImages: (keys: string[]) => Promise<void>
     setShowingPreview: (showing: boolean) => void
@@ -58,6 +73,7 @@ export const MainStore = create<{
     autoSendSendingAll: false,
     promptTemplates: [],
     selectedPromptTemplateId: '',
+    generationHistory: [],
     previewImageList: [
     ],
     downloadAndAppendImage: async (
@@ -68,7 +84,8 @@ export const MainStore = create<{
             docId,
             boundaryUri,
             maskUri,
-            maskHandle
+            maskHandle,
+            history,
         },
         options?: { replaceExisting?: boolean }
     ) => {
@@ -137,10 +154,22 @@ export const MainStore = create<{
             maskHandle: maskHandle ?? null,
         };
 
-        set((state) => ({
-            previewError: '',
-            previewImageList: replaceExisting ? [nextItem] : [...state.previewImageList, nextItem]
-        }))
+        set((state) => {
+            const historyItem = history && (history.prompt.trim() || history.negativePrompt?.trim()) ? {
+                ...history,
+                id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                createdAt: Date.now(),
+                image: thumbnail ?? url,
+            } : null
+            return {
+                previewError: '',
+                previewImageList: replaceExisting ? [nextItem] : [...state.previewImageList, nextItem],
+                // ponytail: thumbnails only, capped to keep plugin storage bounded.
+                generationHistory: historyItem
+                    ? [historyItem, ...state.generationHistory].slice(0, 20)
+                    : state.generationHistory,
+            }
+        })
 
         if (replaceExisting && previousItems.length) {
             for (const item of previousItems) {
@@ -225,6 +254,7 @@ export const MainStore = create<{
         autoSendMode: state.autoSendMode,
         promptTemplates: state.promptTemplates,
         selectedPromptTemplateId: state.selectedPromptTemplateId,
+        generationHistory: state.generationHistory,
     }),
     onRehydrateStorage: () => (state) => {
         if (state?.previewImageList) {

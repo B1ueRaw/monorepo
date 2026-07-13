@@ -1,5 +1,6 @@
 import { sdpppSDK, t } from '@sdppp/common';
 import { MainStore } from '../../tsx/App.store';
+import type { GenerationHistoryInput } from '../../tsx/App.store';
 import { createComfyPromptInjection } from '../../utils/promptTemplates';
 
 export interface ComfyTaskImageContext {
@@ -8,6 +9,7 @@ export interface ComfyTaskImageContext {
     boundaryUri: string | null;
     maskUri: string | null;
     replaceExisting?: boolean;
+    history?: GenerationHistoryInput;
 }
 
 export interface ComfyTaskOptions {
@@ -23,6 +25,7 @@ export const defaultComfyTaskImageHandler = (image: any, context: ComfyTaskImage
         boundaryUri: context.boundaryUri,
         maskUri: context.maskUri,
         maskHandle: null,
+        history: context.history,
     }, {
         replaceExisting: context.replaceExisting === true,
     });
@@ -140,6 +143,12 @@ export class ComfyTask {
                             boundaryUri: this.boundaryUri,
                             maskUri: this.maskUri,
                             replaceExisting: this.replaceExisting,
+                            history: {
+                                prompt: injection.prompt,
+                                negativePrompt: injection.negativePrompt,
+                                templateName: template?.name,
+                                source: workflowName,
+                            },
                         });
                     }
                 }

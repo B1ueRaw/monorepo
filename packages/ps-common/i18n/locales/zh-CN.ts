@@ -1,6 +1,10 @@
 export const zhCN = {
   // 已有的翻译资源（从 locales/zh-CN.ts）
   'preview.show': '显示预览框 ({{count}}张图片)',
+  'generation_history.title': '生成历史（{{count}}）',
+  'generation_history.empty': '暂无生成历史',
+  'generation_history.template': '模板：{{name}}',
+  'generation_history.image_alt': '历史生成图片',
   'gateway.select_ai_service': '请选择AI服务',
   'provider.select.title': '选择 AI 服务提供商',
   'provider.comfyui.description': '自定义AI工作流引擎',
