@@ -5,6 +5,7 @@ export const enUS = {
   'generation_history.empty': 'No generation history yet',
   'generation_history.template': 'Template: {{name}}',
   'generation_history.image_alt': 'Generated image from history',
+  'image_history.title': 'Generated Images ({{count}})',
   'gateway.select_ai_service': 'Please select AI service',
   'provider.select.title': 'Select AI Service Provider',
   'provider.comfyui.description': 'Your powerful node-based workflow engine',

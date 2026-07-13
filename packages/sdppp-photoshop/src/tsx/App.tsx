@@ -1,9 +1,10 @@
 import { useStore } from 'zustand'
+import { useState } from 'react'
 import './App.less'
 import { sdpppSDK } from '@sdppp/common'
-import { Button, ConfigProvider, Flex, Select, theme } from 'antd'
+import { Button, ConfigProvider, Flex, Image, Modal, Select, theme } from 'antd'
 import { Providers } from '../providers'
-import { MainStore } from './App.store'
+import { MainStore, type GenerationHistoryItem } from './App.store'
 import ImagePreviewWrapper from './components/ImagePreviewWrapper'
 import { SDPPPGateway } from './gateway/sdppp'
 import { useTranslation, I18nextProvider, i18n } from '@sdppp/common'
@@ -17,24 +18,27 @@ export default function App() {
     const psTheme = useStore(sdpppSDK.stores.PhotoshopStore, state => state.theme)
     const showingPreview = MainStore(state => state.showingPreview)
     const previewImageList = MainStore(state => state.previewImageList)
+    const generationHistory = MainStore(state => state.generationHistory)
 
     const fontSize = 12
 
     
 
     return <I18nextProvider i18n={i18n}>
-        <AppContent psTheme={psTheme} showingPreview={showingPreview} previewImageList={previewImageList} fontSize={fontSize} />
+        <AppContent psTheme={psTheme} showingPreview={showingPreview} previewImageList={previewImageList} generationHistory={generationHistory} fontSize={fontSize} />
     </I18nextProvider>
 }
 
-function AppContent({ psTheme, showingPreview, previewImageList, fontSize }: {
+function AppContent({ psTheme, showingPreview, previewImageList, generationHistory, fontSize }: {
     psTheme: string;
     showingPreview: boolean;
     previewImageList: any[];
+    generationHistory: GenerationHistoryItem[];
     fontSize: number;
 }) {
     const { t, isZhCN } = useTranslation()
     const antdLocale = isZhCN() ? zhCN : enUS
+    const [historyOpen, setHistoryOpen] = useState(false)
     
 
     return <div id="app" className={themeClassName(psTheme)}>
@@ -121,11 +125,31 @@ function AppContent({ psTheme, showingPreview, previewImageList, fontSize }: {
                     },
                 }
             }}>
-            {!showingPreview && previewImageList.length ? <Flex gap={8} justify="center" align="center" style={{ marginBottom: 16 }}>
-                <Button size="small" type="primary" onClick={() => MainStore.setState({ showingPreview: true })}>
-                    {t('preview.show', { count: previewImageList.length, defaultMessage: 'Show Preview ({count})' })}
+            {!showingPreview ? <Flex gap={8} justify="center" align="center" style={{ marginBottom: 16 }}>
+                {previewImageList.length ? (
+                    <Button size="small" type="primary" onClick={() => MainStore.setState({ showingPreview: true })}>
+                        {t('preview.show', { count: previewImageList.length, defaultMessage: 'Show Preview ({count})' })}
+                    </Button>
+                ) : null}
+                <Button size="small" disabled={!generationHistory.length} onClick={() => setHistoryOpen(true)}>
+                    {t('image_history.title', { count: generationHistory.length })}
                 </Button>
             </Flex> : null}
+            <Modal
+                open={historyOpen}
+                title={t('image_history.title', { count: generationHistory.length })}
+                footer={null}
+                width={520}
+                onCancel={() => setHistoryOpen(false)}
+            >
+                <Image.PreviewGroup>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, maxHeight: '70vh', overflowY: 'auto' }}>
+                        {generationHistory.map(item => (
+                            <Image key={item.id} src={item.image} alt={t('generation_history.image_alt')} width="100%" />
+                        ))}
+                    </div>
+                </Image.PreviewGroup>
+            </Modal>
             {
                 showingPreview ? <ImagePreviewWrapper /> : null
             }

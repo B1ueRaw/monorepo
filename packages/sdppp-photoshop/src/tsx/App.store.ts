@@ -155,7 +155,7 @@ export const MainStore = create<{
         };
 
         set((state) => {
-            const historyItem = history && (history.prompt.trim() || history.negativePrompt?.trim()) ? {
+            const historyItem = history ? {
                 ...history,
                 id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
                 createdAt: Date.now(),
