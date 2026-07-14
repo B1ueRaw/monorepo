@@ -127,21 +127,24 @@ function AppContent({ psTheme, showingPreview, previewImageList, generationHisto
                     },
                 }
             }}>
-            {!showingPreview ? <Flex gap={8} justify="center" align="center" style={{ marginBottom: 16 }}>
-                {previewImageList.length ? (
-                    <Button size="small" type="primary" onClick={() => MainStore.setState({ showingPreview: true })}>
-                        {t('preview.show', { count: previewImageList.length, defaultMessage: 'Show Preview ({count})' })}
-                    </Button>
-                ) : null}
-                <Button size="small" onClick={openHistory}>
-                    {t('image_history.title', { count: generationHistory.length })}
-                </Button>
-            </Flex> : null}
             {
                 showingPreview ? <ImagePreviewWrapper /> : null
             }
-            {!showingPreview && provider !== 'ComfyUI' ? <PromptTemplateSelector /> : null}
-            <SDPPPGateway />
+            <SDPPPGateway>
+                {!showingPreview ? <>
+                    <Flex gap={8} justify="center" align="center" style={{ marginBottom: 16 }}>
+                        {previewImageList.length ? (
+                            <Button size="small" type="primary" onClick={() => MainStore.setState({ showingPreview: true })}>
+                                {t('preview.show', { count: previewImageList.length, defaultMessage: 'Show Preview ({count})' })}
+                            </Button>
+                        ) : null}
+                        <Button size="small" onClick={openHistory}>
+                            {t('image_history.title', { count: generationHistory.length })}
+                        </Button>
+                    </Flex>
+                    <PromptTemplateSelector />
+                </> : null}
+            </SDPPPGateway>
         </ConfigProvider>
     </div>
 }

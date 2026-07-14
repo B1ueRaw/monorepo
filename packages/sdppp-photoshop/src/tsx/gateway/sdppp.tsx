@@ -2,11 +2,11 @@ import { useStore } from "zustand";
 import { Providers, PROVIDER_METADATA } from "../../providers";
 import { MainStore } from "../App.store";
 import { Select } from "antd";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { sdpppSDK, useTranslation } from '@sdppp/common';
 import { ProviderCardSelector } from "../components/ProviderCardSelector";
 
-export function SDPPPGateway() {
+export function SDPPPGateway({ children }: { children?: ReactNode }) {
     const { t } = useTranslation()
     const provider = MainStore(state => state.provider)
     // Select only the nested field we care about to avoid re-renders from whole-object identity changes
@@ -54,6 +54,7 @@ export function SDPPPGateway() {
                 )
             ) : null
         }
+        {children}
         {Renderer && <Renderer showingPreview={showingPreview} />}
     </>
 }
