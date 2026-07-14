@@ -1,8 +1,7 @@
 import { useStore } from 'zustand'
-import { useState } from 'react'
 import './App.less'
 import { sdpppSDK } from '@sdppp/common'
-import { Button, ConfigProvider, Flex, Image, Modal, Select, theme } from 'antd'
+import { Button, ConfigProvider, Flex, theme } from 'antd'
 import { Providers } from '../providers'
 import { MainStore, type GenerationHistoryItem } from './App.store'
 import ImagePreviewWrapper from './components/ImagePreviewWrapper'
@@ -11,6 +10,7 @@ import { useTranslation, I18nextProvider, i18n } from '@sdppp/common'
 import zhCN from 'antd/locale/zh_CN'
 import enUS from 'antd/locale/en_US'
 import { PromptTemplateSelector } from './components/PromptTemplateSelector'
+import { openGenerationHistoryWindow } from '../utils/generationHistoryWindow'
 
  
 
@@ -40,7 +40,7 @@ function AppContent({ psTheme, showingPreview, previewImageList, generationHisto
 }) {
     const { t, isZhCN } = useTranslation()
     const antdLocale = isZhCN() ? zhCN : enUS
-    const [historyOpen, setHistoryOpen] = useState(false)
+    const openHistory = () => openGenerationHistoryWindow(generationHistory, t)
     
 
     return <div id="app" className={themeClassName(psTheme)}>
@@ -133,25 +133,10 @@ function AppContent({ psTheme, showingPreview, previewImageList, generationHisto
                         {t('preview.show', { count: previewImageList.length, defaultMessage: 'Show Preview ({count})' })}
                     </Button>
                 ) : null}
-                <Button size="small" disabled={!generationHistory.length} onClick={() => setHistoryOpen(true)}>
+                <Button size="small" onClick={openHistory}>
                     {t('image_history.title', { count: generationHistory.length })}
                 </Button>
             </Flex> : null}
-            <Modal
-                open={historyOpen}
-                title={t('image_history.title', { count: generationHistory.length })}
-                footer={null}
-                width={520}
-                onCancel={() => setHistoryOpen(false)}
-            >
-                <Image.PreviewGroup>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, maxHeight: '70vh', overflowY: 'auto' }}>
-                        {generationHistory.map(item => (
-                            <Image key={item.id} src={item.image} alt={t('generation_history.image_alt')} width="100%" />
-                        ))}
-                    </div>
-                </Image.PreviewGroup>
-            </Modal>
             {
                 showingPreview ? <ImagePreviewWrapper /> : null
             }

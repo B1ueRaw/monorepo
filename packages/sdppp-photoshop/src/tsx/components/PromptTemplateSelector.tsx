@@ -1,4 +1,4 @@
-import { Button, Flex, Form, Input, List, Modal, Popconfirm, Select, Tag, Tooltip, Typography } from 'antd'
+import { Button, Flex, Form, Input, Modal, Popconfirm, Select, Tooltip, Typography } from 'antd'
 import { History as HistoryIcon, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { sdpppSDK, useTranslation } from '@sdppp/common'
@@ -7,6 +7,7 @@ import { customapiStore } from '../../providers/_customapi/renderer/customapi.st
 import { replicateStore } from '../../providers/_replicate/renderer/replicate.store'
 import { runninghubStore } from '../../providers/_runninghub/renderer/runninghub.store'
 import { MainStore } from '../App.store'
+import { openGenerationHistoryWindow } from '../../utils/generationHistoryWindow'
 
 type TemplateForm = Pick<PromptTemplate, 'name' | 'prompt'>
 
@@ -17,7 +18,6 @@ export function PromptTemplateSelector() {
     const selectedId = MainStore(state => state.selectedPromptTemplateId)
     const history = MainStore(state => state.generationHistory)
     const [editing, setEditing] = useState<PromptTemplate | null>()
-    const [historyOpen, setHistoryOpen] = useState(false)
     const [applying, setApplying] = useState(false)
     const [appliedTemplate, setAppliedTemplate] = useState<PromptTemplate>()
     const [applyError, setApplyError] = useState('')
@@ -153,8 +153,7 @@ export function PromptTemplateSelector() {
                     <Button
                         aria-label={t('generation_history.title', { count: history.length })}
                         icon={<HistoryIcon size={16} />}
-                        disabled={!history.length}
-                        onClick={() => setHistoryOpen(true)}
+                        onClick={() => openGenerationHistoryWindow(history, t)}
                     />
                 </Tooltip>
             </Flex>
@@ -184,46 +183,6 @@ export function PromptTemplateSelector() {
                         <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} />
                     </Form.Item>
                 </Form>
-            </Modal>
-            <Modal
-                open={historyOpen}
-                title={t('generation_history.title', { count: history.length })}
-                footer={null}
-                width={480}
-                onCancel={() => setHistoryOpen(false)}
-            >
-                <List
-                    dataSource={history}
-                    locale={{ emptyText: t('generation_history.empty') }}
-                    style={{ maxHeight: '70vh', overflowY: 'auto' }}
-                    renderItem={item => (
-                        <List.Item key={item.id}>
-                            <Flex vertical gap={8} style={{ width: '100%' }}>
-                                <img
-                                    src={item.image}
-                                    alt={t('generation_history.image_alt')}
-                                    style={{ width: '100%', maxHeight: 360, objectFit: 'contain', borderRadius: 4 }}
-                                />
-                                <Typography.Text type="secondary">
-                                    {new Date(item.createdAt).toLocaleString()} · {item.source}
-                                </Typography.Text>
-                                {item.templateName ? <Tag>{t('generation_history.template', { name: item.templateName })}</Tag> : null}
-                                <Typography.Text strong>{t('comfy_simple.prompt_templates.positive_label')}</Typography.Text>
-                                <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
-                                    {item.prompt}
-                                </Typography.Paragraph>
-                                {item.negativePrompt ? (
-                                    <>
-                                        <Typography.Text strong>{t('comfy_simple.prompt_templates.negative_label')}</Typography.Text>
-                                        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
-                                            {item.negativePrompt}
-                                        </Typography.Paragraph>
-                                    </>
-                                ) : null}
-                            </Flex>
-                        </List.Item>
-                    )}
-                />
             </Modal>
         </>
     )
