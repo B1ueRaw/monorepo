@@ -18,6 +18,7 @@ describe('createGenerationHistoryWindowMessage', () => {
         expect(message).toMatchObject({
             type: 'sdppp:open-generation-history',
             title: 'generation_history.title:1',
+            positiveLabel: 'generation_history.prompt:',
             items: [{
                 image: 'data:image/png;base64,image',
                 template: 'generation_history.template:Portrait',
@@ -25,6 +26,6 @@ describe('createGenerationHistoryWindowMessage', () => {
                 negativePrompt: 'blur',
             }],
         })
-        expect(message.items[0].meta).toContain('ComfyUI')
+        expect(message.items[0].meta).toContain('\nComfyUI')
     })
 })

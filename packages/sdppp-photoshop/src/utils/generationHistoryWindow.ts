@@ -18,11 +18,11 @@ export function createGenerationHistoryWindowMessage(history: GenerationHistoryI
         emptyText: t('generation_history.empty'),
         closeText: t('common.close'),
         imageAlt: t('generation_history.image_alt'),
-        positiveLabel: t('comfy_simple.prompt_templates.positive_label'),
+        positiveLabel: t('generation_history.prompt'),
         negativeLabel: t('comfy_simple.prompt_templates.negative_label'),
         items: history.map(item => ({
             image: item.image,
-            meta: `${new Date(item.createdAt).toLocaleString()} · ${item.source}`,
+            meta: `${new Date(item.createdAt).toLocaleString()}\n${item.source}`,
             template: item.templateName ? t('generation_history.template', { name: item.templateName }) : '',
             prompt: item.prompt,
             negativePrompt: item.negativePrompt ?? '',

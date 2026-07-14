@@ -77,7 +77,7 @@ function openHistoryDialog(message) {
             image.alt = typeof message.imageAlt === "string" ? message.imageAlt : "";
             card.appendChild(image);
         }
-        appendText(card, "div", item.meta, { marginBottom: "6px", opacity: "0.7", fontSize: "12px" });
+        appendText(card, "div", item.meta, { marginBottom: "6px", opacity: "0.7", fontSize: "12px", whiteSpace: "pre-wrap" });
         if (item.template) {
             appendText(card, "div", item.template, { marginBottom: "8px", fontSize: "12px" });
         }
