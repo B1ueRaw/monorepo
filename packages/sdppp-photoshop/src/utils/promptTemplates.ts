@@ -2,7 +2,6 @@ export interface PromptTemplate {
     id: string
     name: string
     prompt: string
-    negativePrompt?: string
 }
 
 export interface PromptSnapshot {
@@ -36,9 +35,15 @@ function mergePrompt(template: string, current: unknown): string {
     return value ? `${prefix}\n${value}` : prefix
 }
 
+function removePrompt(template: string, current: unknown): string {
+    const prefix = template.trim()
+    const value = typeof current === 'string' ? current.trim() : ''
+    return value === prefix ? '' : value.startsWith(`${prefix}\n`) ? value.slice(prefix.length + 1) : value
+}
+
 function promptNode(nodes: PromptNode[], role: PromptRole): PromptNode | undefined {
     return nodes.find(node =>
-        node.widgets?.some(widget => ['string', 'text'].includes(widget.outputType?.toLowerCase() ?? '')) && promptRole(node) === role
+        node.widgets?.some(widget => ['string', 'text', 'customtext'].includes(widget.outputType?.toLowerCase() ?? '')) && promptRole(node) === role
     )
 }
 
@@ -54,15 +59,13 @@ export function injectPromptTemplate(
     values: Record<string, any>,
     nodes: PromptNode[],
     template?: PromptTemplate,
+    remove = false,
 ): Record<string, any> {
     if (!template) return values
 
     const next = { ...values }
     const positive = promptNode(nodes, 'positive')
-    const negative = template.negativePrompt?.trim() ? promptNode(nodes, 'negative') : undefined
-
-    if (positive && template.prompt.trim()) next[positive.id] = mergePrompt(template.prompt, next[positive.id])
-    if (negative) next[negative.id] = mergePrompt(template.negativePrompt!, next[negative.id])
+    if (positive && template.prompt.trim()) next[positive.id] = remove ? removePrompt(template.prompt, next[positive.id]) : mergePrompt(template.prompt, next[positive.id])
     return next
 }
 
@@ -70,6 +73,7 @@ export function createComfyPromptInjection(
     structure: { nodes?: Record<string, PromptNode>; nodeIndexes?: string[] } | null | undefined,
     values: Record<string, any[]> | null | undefined,
     template?: PromptTemplate,
+    remove = false,
 ) {
     const nodes = structure?.nodes ?? {}
     const orderedNodes = (structure?.nodeIndexes ?? Object.keys(nodes)).map(id => nodes[id]).filter(Boolean)
@@ -80,18 +84,18 @@ export function createComfyPromptInjection(
     const add = (role: PromptRole, templatePrompt: string | undefined) => {
         const node = promptNode(orderedNodes, role)
         if (!node) return
-        const widgetIndex = node.widgets!.findIndex(widget => ['string', 'text'].includes(widget.outputType?.toLowerCase() ?? ''))
+        const widgetIndex = node.widgets!.findIndex(widget => ['string', 'text', 'customtext'].includes(widget.outputType?.toLowerCase() ?? ''))
         const current = values?.[node.id]?.[widgetIndex] ?? ''
         if (typeof current !== 'string') return
-        const value = templatePrompt?.trim() ? mergePrompt(templatePrompt, current) : current.trim()
+        const value = templatePrompt?.trim() ? (remove ? removePrompt(templatePrompt, current) : mergePrompt(templatePrompt, current)) : current.trim()
         prompts[role] = value
-        if (!templatePrompt?.trim()) return
+        if (!templatePrompt?.trim() || value === current) return
         updates.push({ nodeID: node.id, widgetIndex, value })
-        restore.push({ nodeID: node.id, widgetIndex, value: current })
+        if (!remove) restore.push({ nodeID: node.id, widgetIndex, value: current })
     }
 
     add('positive', template?.prompt)
-    add('negative', template?.negativePrompt)
+    add('negative', undefined)
     return {
         updates,
         restore,

@@ -7,6 +7,7 @@ import './workflow-detail.less';
 import { comfyWorkflowStore } from '../comfy_frontend';
 import { ComfyWorkflowControlPanel } from './workflow-detail/components/ComfyWorkflowControlPanel';
 import { EMPTY_OBJECT } from './workflow-detail/constants';
+import { PromptTemplateSelector } from '../../../../tsx/components/PromptTemplateSelector';
 
 // 渲染计数器
 let workflowDetailRenderCount = 0;
@@ -124,6 +125,7 @@ export function WorkflowDetail({
           uploading={uploading}
           setUploading={setUploading}
         />
+        <PromptTemplateSelector />
       </div>
       <WorkflowEdit
         widgetableStructure={widgetableStructure as any}

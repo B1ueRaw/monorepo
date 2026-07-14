@@ -19,21 +19,23 @@ export default function App() {
     const showingPreview = MainStore(state => state.showingPreview)
     const previewImageList = MainStore(state => state.previewImageList)
     const generationHistory = MainStore(state => state.generationHistory)
+    const provider = MainStore(state => state.provider)
 
     const fontSize = 12
 
     
 
     return <I18nextProvider i18n={i18n}>
-        <AppContent psTheme={psTheme} showingPreview={showingPreview} previewImageList={previewImageList} generationHistory={generationHistory} fontSize={fontSize} />
+        <AppContent psTheme={psTheme} showingPreview={showingPreview} previewImageList={previewImageList} generationHistory={generationHistory} provider={provider} fontSize={fontSize} />
     </I18nextProvider>
 }
 
-function AppContent({ psTheme, showingPreview, previewImageList, generationHistory, fontSize }: {
+function AppContent({ psTheme, showingPreview, previewImageList, generationHistory, provider, fontSize }: {
     psTheme: string;
     showingPreview: boolean;
     previewImageList: any[];
     generationHistory: GenerationHistoryItem[];
+    provider: (keyof typeof Providers) | '';
     fontSize: number;
 }) {
     const { t, isZhCN } = useTranslation()
@@ -153,7 +155,7 @@ function AppContent({ psTheme, showingPreview, previewImageList, generationHisto
             {
                 showingPreview ? <ImagePreviewWrapper /> : null
             }
-            {!showingPreview ? <PromptTemplateSelector /> : null}
+            {!showingPreview && provider !== 'ComfyUI' ? <PromptTemplateSelector /> : null}
             <SDPPPGateway />
         </ConfigProvider>
     </div>

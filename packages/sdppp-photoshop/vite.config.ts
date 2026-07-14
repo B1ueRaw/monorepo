@@ -1,8 +1,9 @@
 import { remoteConfigLoader } from '@sdppp/vite-remote-config-loader/vite';
 import react from '@vitejs/plugin-react';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
+import { writeOfficialV2Runtime } from './build/official-v2-vendor.js';
 
 function reactDevOnlyPlugin() {
   const matcher = /node_modules\/(react|react-dom)\//;
@@ -152,8 +153,7 @@ function copyPublicAssetsPlugin() {
             mkdirSync(logosTargetDir, { recursive: true });
 
             // 复制所有 logo 文件
-            const fs = require('fs');
-            const logoFiles = fs.readdirSync(logosSourceDir);
+            const logoFiles = readdirSync(logosSourceDir);
             logoFiles.forEach(file => {
               copyFileSync(
                 resolve(logosSourceDir, file),
@@ -171,13 +171,36 @@ function copyPublicAssetsPlugin() {
   };
 }
 
+function officialV2RuntimePlugin() {
+  return {
+    name: 'official-v2-runtime',
+    writeBundle(options) {
+      const webviewDir = resolve(import.meta.dirname, options.dir || './plugin/webview');
+      writeOfficialV2Runtime({
+        releaseRepo: resolve(import.meta.dirname, '../../release-repos/sd-ppp'),
+        pluginDir: resolve(import.meta.dirname, './plugin'),
+        webviewDir,
+      });
+      console.log('✅ Added official SD-PPP 2.0 Sponsor/RunningHub runtime');
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), reactDevOnlyPlugin(), sdpppXPlugin(), moveScriptToBodyPlugin(), sdkPlugin(), copyPublicAssetsPlugin(),
+  plugins: [react(), reactDevOnlyPlugin(), sdpppXPlugin(), moveScriptToBodyPlugin(), sdkPlugin(), copyPublicAssetsPlugin(), officialV2RuntimePlugin(),
     remoteConfigLoader({
       configs: [
         {
           id: 'banners',
           url: 'https://sdppp.zombee.tech/banners/banners2.json'
+        },
+        {
+          id: 'tenant',
+          url: 'https://sdppp.zombee.tech/tenants/4aba746e-c31a-4d6a-a88f-1dd71ee3ca8c.json?t=123'
+        },
+        {
+          id: 'sdppp_sponsor',
+          url: 'https://sdppp.zombee.tech/banners/sdppp/config.json'
         }
       ]
     })

@@ -8,7 +8,7 @@ import { replicateStore } from '../../providers/_replicate/renderer/replicate.st
 import { runninghubStore } from '../../providers/_runninghub/renderer/runninghub.store'
 import { MainStore } from '../App.store'
 
-type TemplateForm = Pick<PromptTemplate, 'name' | 'prompt' | 'negativePrompt'>
+type TemplateForm = Pick<PromptTemplate, 'name' | 'prompt'>
 
 export function PromptTemplateSelector() {
     const { t } = useTranslation()
@@ -19,6 +19,7 @@ export function PromptTemplateSelector() {
     const [editing, setEditing] = useState<PromptTemplate | null>()
     const [historyOpen, setHistoryOpen] = useState(false)
     const [applying, setApplying] = useState(false)
+    const [appliedTemplate, setAppliedTemplate] = useState<PromptTemplate>()
     const [applyError, setApplyError] = useState('')
     const [form] = Form.useForm<TemplateForm>()
 
@@ -26,7 +27,7 @@ export function PromptTemplateSelector() {
 
     const openEditor = (template: PromptTemplate | null) => {
         setEditing(template)
-        form.setFieldsValue(template ?? { name: '', prompt: '', negativePrompt: '' })
+        form.setFieldsValue(template ?? { name: '', prompt: '' })
     }
 
     const save = async () => {
@@ -41,7 +42,6 @@ export function PromptTemplateSelector() {
             id: editing?.id ?? `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
             name,
             prompt: values.prompt.trim(),
-            negativePrompt: values.negativePrompt?.trim(),
         }
         MainStore.setState({
             promptTemplates: editing
@@ -59,33 +59,43 @@ export function PromptTemplateSelector() {
 
     const selected = templates.find(template => template.id === selectedId)
 
+    const updateTemplate = async (template: PromptTemplate, remove = false) => {
+        if (provider === 'ComfyUI') {
+            const state = sdpppSDK.stores.ComfyStore.getState()
+            const updates = createComfyPromptInjection(state.widgetableStructure, state.widgetableValues, template, remove).updates
+            if (!updates.length && !remove) throw new Error(t('comfy_simple.prompt_templates.apply_failed_missing_binding', {
+                part: t('comfy_simple.prompt_templates.positive_label'),
+            }))
+            if (updates.length) await sdpppSDK.plugins.ComfyCaller.setWidgetValue({ values: updates })
+            return
+        }
+
+        const store = provider === 'CustomAPI' ? customapiStore
+            : provider === 'Replicate' ? replicateStore
+                : provider === 'RunningHub' ? runninghubStore
+                    : null
+        if (!store) throw new Error(t('comfy_simple.prompt_templates.apply_unavailable'))
+
+        const state = store.getState()
+        const values = injectPromptTemplate(state.currentValues, state.currentNodes, template, remove)
+        if (!remove && !getPromptSnapshot(values, state.currentNodes).prompt) throw new Error(t('comfy_simple.prompt_templates.apply_failed_missing_binding', {
+            part: t('comfy_simple.prompt_templates.positive_label'),
+        }))
+        state.setCurrentValues(values)
+    }
+
     const apply = async () => {
         if (!selected) return
         setApplying(true)
         setApplyError('')
         try {
-            if (provider === 'ComfyUI') {
-                const state = sdpppSDK.stores.ComfyStore.getState()
-                const injection = createComfyPromptInjection(state.widgetableStructure, state.widgetableValues, selected)
-                if (!injection.updates.length) throw new Error(t('comfy_simple.prompt_templates.apply_failed_missing_binding', {
-                    part: t('comfy_simple.prompt_templates.positive_label'),
-                }))
-                await sdpppSDK.plugins.ComfyCaller.setWidgetValue({ values: injection.updates })
-                return
+            if (appliedTemplate) {
+                await updateTemplate(appliedTemplate, true)
+                setAppliedTemplate(undefined)
+            } else {
+                await updateTemplate(selected)
+                setAppliedTemplate(selected)
             }
-
-            const store = provider === 'CustomAPI' ? customapiStore
-                : provider === 'Replicate' ? replicateStore
-                    : provider === 'RunningHub' ? runninghubStore
-                        : null
-            if (!store) throw new Error(t('comfy_simple.prompt_templates.apply_unavailable'))
-
-            const state = store.getState()
-            const values = injectPromptTemplate(state.currentValues, state.currentNodes, selected)
-            if (!getPromptSnapshot(values, state.currentNodes).prompt) throw new Error(t('comfy_simple.prompt_templates.apply_failed_missing_binding', {
-                part: t('comfy_simple.prompt_templates.positive_label'),
-            }))
-            state.setCurrentValues(values)
         } catch (error) {
             setApplyError(error instanceof Error ? error.message : t('comfy_simple.prompt_templates.applied_failed'))
         } finally {
@@ -101,14 +111,27 @@ export function PromptTemplateSelector() {
                     value={selectedId || undefined}
                     placeholder={t('comfy_simple.prompt_templates.modal_title')}
                     options={templates.map(template => ({ label: template.name, value: template.id }))}
-                    onChange={value => {
+                    disabled={applying}
+                    onChange={async value => {
                         setApplyError('')
+                        if (appliedTemplate) {
+                            setApplying(true)
+                            try {
+                                await updateTemplate(appliedTemplate, true)
+                                setAppliedTemplate(undefined)
+                            } catch (error) {
+                                setApplyError(error instanceof Error ? error.message : t('comfy_simple.prompt_templates.applied_failed'))
+                                return
+                            } finally {
+                                setApplying(false)
+                            }
+                        }
                         MainStore.setState({ selectedPromptTemplateId: value ?? '' })
                     }}
                     style={{ flex: 1 }}
                 />
                 <Button type="primary" loading={applying} disabled={!selected} onClick={apply}>
-                    {t('common.apply')}
+                    {t(appliedTemplate ? 'common.cancel' : 'common.apply')}
                 </Button>
                 <Tooltip title={t('comfy_simple.prompt_templates.add_title')}>
                     <Button icon={<Plus size={16} />} onClick={() => openEditor(null)} />
@@ -159,9 +182,6 @@ export function PromptTemplateSelector() {
                         rules={[{ required: true, whitespace: true, message: t('comfy_simple.prompt_templates.missing_value') }]}
                     >
                         <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} />
-                    </Form.Item>
-                    <Form.Item name="negativePrompt" label={t('comfy_simple.prompt_templates.negative_label')}>
-                        <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} />
                     </Form.Item>
                 </Form>
             </Modal>

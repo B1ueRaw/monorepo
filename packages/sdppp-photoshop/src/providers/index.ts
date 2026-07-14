@@ -1,10 +1,9 @@
 import { availableModels as replicateAvailableModels, SDPPPReplicate } from "./_replicate/client";
-import { SDPPPRunningHub } from "./_runninghub/client";
 import { SDPPPCustomAPI } from "./_customapi/client";
 import ReplicateRenderer from "./_replicate/renderer/replicate";
-import RunningHubRenderer from "./_runninghub/renderer/runninghub";
 import CustomAPIRenderer from "./_customapi/renderer/customapi";
 import { ComfyFrontendRenderer } from "./_comfy_frontend/renderer/comfy_frontend.tsx";
+import { RunningHubV2Renderer, SponsorV2Renderer } from "./_official_v2/renderer";
 
 // Use public paths to access logos without bundling
 const ComfyUILogo = './assets/provider-logos/comfy_160x160.jpg';
@@ -32,6 +31,36 @@ const CustomAPIProvider = {
 } as const;
 
 export const Providers = {
+    ComfyUI: {
+        Renderer: ComfyFrontendRenderer,
+        metadata: {
+            id: 'ComfyUI',
+            name: 'ComfyUI',
+            description: 'provider.comfyui.description',
+            brandColor: '#172Ed8',
+            logoPath: ComfyUILogo
+        }
+    },
+    SDPPPSponsor: {
+        Renderer: SponsorV2Renderer,
+        metadata: {
+            id: 'SDPPPSponsor',
+            name: 'SDPPP API',
+            description: 'provider.sdppp_sponsor.description',
+            brandColor: '#4CAF50',
+            logoPath: ''
+        }
+    },
+    RunningHub: {
+        Renderer: RunningHubV2Renderer,
+        metadata: {
+            id: 'RunningHub',
+            name: 'RunningHub',
+            description: 'provider.runninghub.description',
+            brandColor: '#02dba3',
+            logoPath: RunningHubLogo
+        }
+    },
     Replicate: {
         client: SDPPPReplicate,
         Renderer: ReplicateRenderer,
@@ -44,33 +73,13 @@ export const Providers = {
             logoPath: ReplicateLogo
         }
     },
-    RunningHub: {
-        client: SDPPPRunningHub,
-        Renderer: RunningHubRenderer,
-        metadata: {
-            id: 'RunningHub',
-            name: 'RunningHub',
-            description: 'provider.runninghub.description',
-            brandColor: '#02dba3',
-            logoPath: RunningHubLogo
-        }
-    },
-    ComfyUI: {
-        Renderer: ComfyFrontendRenderer,
-        metadata: {
-            id: 'ComfyUI',
-            name: 'ComfyUI',
-            description: 'provider.comfyui.description',
-            brandColor: '#172Ed8',
-            logoPath: ComfyUILogo
-        }
-    },
     CustomAPI: CustomAPIProvider
 }
 
 export const PROVIDER_METADATA: Record<string, ProviderMetadata> = {
-    Replicate: Providers.Replicate.metadata,
-    RunningHub: Providers.RunningHub.metadata,
     ComfyUI: Providers.ComfyUI.metadata,
+    SDPPPSponsor: Providers.SDPPPSponsor.metadata,
+    RunningHub: Providers.RunningHub.metadata,
+    Replicate: Providers.Replicate.metadata,
     CustomAPI: Providers.CustomAPI.metadata
 };
