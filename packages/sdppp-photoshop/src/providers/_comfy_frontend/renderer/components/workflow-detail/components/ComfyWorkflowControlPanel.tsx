@@ -10,7 +10,6 @@ import {
   WorkflowTitle,
 } from './HeaderControls';
 import {
-  AutoRunButton,
   RunButton,
   RunMultiButtons,
   StopAndCancelButton,
@@ -56,17 +55,6 @@ export const ComfyWorkflowControlPanel: React.FC<ComfyWorkflowControlPanelProps>
     </div>
   ), [currentWorkflow]);
 
-  const middleTopRight = useMemo(() => (
-    <div className="workflow-controls-actions">
-      <StopAndCancelButton className="workflow-action-button" />
-      <AutoRunButton
-        currentWorkflow={currentWorkflow}
-        setUploading={setUploading}
-        className="workflow-action-button"
-      />
-    </div>
-  ), [currentWorkflow, setUploading]);
-
   return (
     <WorkflowControlsPanel
       className="workflow-detail-controls"
@@ -108,7 +96,11 @@ export const ComfyWorkflowControlPanel: React.FC<ComfyWorkflowControlPanelProps>
             form={boundarySettings.form}
           />
         ),
-        right: middleTopRight,
+        right: (
+          <div className="workflow-controls-actions">
+            <StopAndCancelButton className="workflow-action-button" />
+          </div>
+        ),
       }}
       middleBottomRow={{
         // left: !isBoundaryPreviewVisible ? (

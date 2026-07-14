@@ -1,14 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Button, Tooltip } from 'antd';
-import { CircleX, FastForward, PlayCircle } from 'lucide-react';
-import { useStore } from 'zustand';
+import { CircleX, PlayCircle } from 'lucide-react';
 import { sdpppSDK } from '@sdppp/common';
 import { buildBoundaryUri } from '@sdppp/resourcing/src/resource-uris';
 import { useTranslation } from '@sdppp/common';
 import { useUploadPasses } from '../../../../../base/upload-pass-context';
 import { ComfyTask } from '../../../../ComfyTask';
 
-const AUTO_RUN_ACTIVE_CLASS = 'workflow-action-active';
 const ICON_SIZE = 16;
 const PRIMARY_ICON_SIZE = 32;
 
@@ -48,12 +46,6 @@ interface RunMultiButtonsProps extends RunButtonProps {
   onMouseLeave?: () => void;
 }
 
-interface AutoRunButtonProps {
-  currentWorkflow: string;
-  setUploading: (uploading: boolean) => void;
-  className?: string;
-}
-
 export const StopAndCancelButton: React.FC<{ className?: string }> = ({ className }) => {
   const { t } = useTranslation();
   const translate = t as unknown as (key: string, options?: Record<string, unknown>) => string;
@@ -67,58 +59,6 @@ export const StopAndCancelButton: React.FC<{ className?: string }> = ({ classNam
         icon={<CircleX size={ICON_SIZE} />}
         danger
         onClick={onClearAndInterrupt}
-      />
-    </Tooltip>
-  );
-};
-
-export const AutoRunButton: React.FC<AutoRunButtonProps> = ({
-  currentWorkflow,
-  setUploading,
-  className,
-}) => {
-  const { t } = useTranslation();
-  const translate = t as unknown as (key: string, options?: Record<string, unknown>) => string;
-  const [isAutoRunning, setIsAutoRunning] = useState(false);
-  const canvasStateID = useStore(sdpppSDK.stores.PhotoshopStore, (state) => state.canvasStateID);
-  const { waitAllUploadPasses } = useUploadPasses();
-  const waitAllUploadPassesRef = useRef(waitAllUploadPasses);
-  const currentWorkflowRef = useRef(currentWorkflow);
-
-  useEffect(() => {
-    waitAllUploadPassesRef.current = waitAllUploadPasses;
-  }, [waitAllUploadPasses]);
-
-  useEffect(() => {
-    currentWorkflowRef.current = currentWorkflow;
-  }, [currentWorkflow]);
-
-  useEffect(() => {
-    if (!isAutoRunning || !canvasStateID) return;
-    let cancelled = false;
-    (async () => {
-      setUploading(true);
-      try {
-        await waitAllUploadPassesRef.current();
-      } finally {
-        setUploading(false);
-      }
-      if (!cancelled) {
-        await runAndWaitResult(1, currentWorkflowRef.current);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [canvasStateID, isAutoRunning, setUploading]);
-
-  return (
-    <Tooltip title={isAutoRunning ? translate('comfy.stop_auto_run') : translate('comfy.start_auto_run')}>
-      <Button
-        icon={<FastForward size={ICON_SIZE} />}
-        type={isAutoRunning ? 'primary' : 'default'}
-        className={`${className ?? ''} ${isAutoRunning ? AUTO_RUN_ACTIVE_CLASS : ''}`.trim()}
-        onClick={() => {
-          setIsAutoRunning(!isAutoRunning);
-        }}
       />
     </Tooltip>
   );
