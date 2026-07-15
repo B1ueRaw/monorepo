@@ -19,6 +19,7 @@ import { PromptTemplateSelector } from '../../../../../../tsx/components/PromptT
 
 interface ComfyWorkflowControlPanelProps {
   currentWorkflow: string;
+  hasPromptNode: boolean;
   setCurrentWorkflow: (workflow: string) => void;
   uploading: boolean;
   setUploading: (uploading: boolean) => void;
@@ -26,6 +27,7 @@ interface ComfyWorkflowControlPanelProps {
 
 export const ComfyWorkflowControlPanel: React.FC<ComfyWorkflowControlPanelProps> = ({
   currentWorkflow,
+  hasPromptNode,
   setCurrentWorkflow,
   uploading,
   setUploading,
@@ -71,7 +73,7 @@ export const ComfyWorkflowControlPanel: React.FC<ComfyWorkflowControlPanelProps>
         ),
         right: headerRight,
       }}
-      headerExtra={<PromptTemplateSelector />}
+      headerExtra={hasPromptNode ? <PromptTemplateSelector /> : undefined}
       bodyRow={{
         // left: isBoundaryPreviewVisible ? (
         //   <BoundaryPreview previewQuality={boundarySettings.previewQuality} />
