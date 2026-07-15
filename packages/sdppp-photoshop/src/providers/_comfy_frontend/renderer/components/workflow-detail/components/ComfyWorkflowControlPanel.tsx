@@ -15,11 +15,9 @@ import {
   StopAndCancelButton,
 } from './RunControls';
 import { WorkflowRunStatus } from './RunStatus';
-import { PromptTemplateSelector } from '../../../../../../tsx/components/PromptTemplateSelector';
 
 interface ComfyWorkflowControlPanelProps {
   currentWorkflow: string;
-  hasPromptNode: boolean;
   setCurrentWorkflow: (workflow: string) => void;
   uploading: boolean;
   setUploading: (uploading: boolean) => void;
@@ -27,7 +25,6 @@ interface ComfyWorkflowControlPanelProps {
 
 export const ComfyWorkflowControlPanel: React.FC<ComfyWorkflowControlPanelProps> = ({
   currentWorkflow,
-  hasPromptNode,
   setCurrentWorkflow,
   uploading,
   setUploading,
@@ -73,7 +70,6 @@ export const ComfyWorkflowControlPanel: React.FC<ComfyWorkflowControlPanelProps>
         ),
         right: headerRight,
       }}
-      headerExtra={hasPromptNode ? <PromptTemplateSelector /> : undefined}
       bodyRow={{
         // left: isBoundaryPreviewVisible ? (
         //   <BoundaryPreview previewQuality={boundarySettings.previewQuality} />

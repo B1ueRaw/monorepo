@@ -151,6 +151,7 @@ export const zhCN = {
   'comfy_simple.prompt_templates.custom_section': '我的模板',
   'comfy_simple.prompt_templates.custom_empty': '还没有自定义模板。',
   'comfy_simple.prompt_templates.applied_success': '模板已应用。',
+  'comfy_simple.prompt_templates.applied_tag': '已使用',
   'comfy_simple.prompt_templates.applied_failed': '应用模板失败。',
   'comfy_simple.prompt_templates.apply_unavailable': '当前无法应用模板。',
   'comfy_simple.prompt_templates.apply_failed_missing_binding': '无法写入{{part}}提示词：未找到对应控件。',

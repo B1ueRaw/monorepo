@@ -22,6 +22,12 @@ describe('prompt template injection', () => {
         expect(values.prompt).toBe('a cat')
         expect(injectPromptTemplate(injected, nodes, template, true)).toEqual(values)
 
+        const watercolor = { id: '2', name: 'Watercolor', prompt: 'watercolor' }
+        const combined = injectPromptTemplate(values, nodes, [template, watercolor])
+        expect(combined.prompt).toBe('watercolor\ncinematic\na cat')
+        expect(injectPromptTemplate(combined, nodes, template, true).prompt).toBe('watercolor\na cat')
+        expect(injectPromptTemplate(combined, nodes, [template, watercolor])).toEqual(combined)
+
         const comfy = createComfyPromptInjection(
             { nodes: {
                 '25': { id: '25', title: '#01. Pos Prompt', widgets: [{ outputType: 'string' }] },

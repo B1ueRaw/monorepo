@@ -93,12 +93,12 @@ export class ComfyTask {
     private async executeComfyTask(runParams: { size: number, mode?: 'app' | 'api' }, workflowName: string): Promise<any[]> {
         try {
             const promptState = MainStore.getState();
-            const template = promptState.promptTemplates.find(item => item.id === promptState.selectedPromptTemplateId);
+            const templates = promptState.promptTemplates.filter(item => promptState.appliedPromptTemplateIds.includes(item.id));
             const comfyState = sdpppSDK.stores.ComfyStore.getState();
             const injection = createComfyPromptInjection(
                 comfyState.widgetableStructure,
                 comfyState.widgetableValues,
-                template,
+                templates,
             );
             if (injection.updates.length) {
                 await sdpppSDK.plugins.ComfyCaller.setWidgetValue({ values: injection.updates });
@@ -135,7 +135,7 @@ export class ComfyTask {
                                 history: {
                                     prompt: injection.prompt,
                                     negativePrompt: injection.negativePrompt,
-                                    templateName: template?.name,
+                                    templateName: templates.map(item => item.name).join(', ') || undefined,
                                     source: workflowName,
                                 },
                             });

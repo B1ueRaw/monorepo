@@ -15,6 +15,14 @@ function applyStyles(element, styles) {
     return element;
 }
 
+function makeDialogResponsive(dialog, ...sections) {
+    requestAnimationFrame(() => {
+        dialog.style.width = "100vw";
+        dialog.style.height = "100vh";
+        sections.forEach(section => { section.style.height = "calc(100vh - 60px)"; });
+    });
+}
+
 function appendText(parent, tag, value, styles = {}) {
     const element = applyStyles(document.createElement(tag), styles);
     element.textContent = typeof value === "string" ? value : "";
@@ -66,13 +74,13 @@ function removeHistoryDialog() {
     if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
 }
 
-function postPromptTemplateAction(itemId, action) {
+function postPromptTemplateAction(itemId, action, item) {
     const webview = promptTemplatesWebview
         || document.getElementById("content-webview")
         || document.querySelector("webview");
     if (!webview || typeof webview.postMessage !== "function") return false;
     try {
-        webview.postMessage({ type: PROMPT_TEMPLATES_ACTION_MESSAGE, id: itemId || "", action }, "*");
+        webview.postMessage({ type: PROMPT_TEMPLATES_ACTION_MESSAGE, id: itemId || "", action, item }, "*");
         return true;
     } catch (error) {
         console.error("Failed to send prompt template action", error);
@@ -92,6 +100,18 @@ function openPromptTemplatesDialog(message) {
     if (!message || !Array.isArray(message.items)) return;
     removePromptTemplatesDialog();
 
+    let items = message.items.filter(item => item && typeof item === "object");
+    const appliedIds = new Set(Array.isArray(message.appliedTemplateIds) ? message.appliedTemplateIds : []);
+    const appendButton = (parent, text, styles = {}) => appendText(parent, "button", text, {
+        padding: "7px 12px",
+        color: "#fff",
+        border: "1px solid rgba(255, 255, 255, 0.18)",
+        borderRadius: "8px",
+        backgroundColor: "rgba(80, 80, 80, 0.95)",
+        cursor: "pointer",
+        ...styles,
+    });
+
     const dialog = applyStyles(document.createElement("dialog"), {
         width: "720px",
         height: "640px",
@@ -108,8 +128,14 @@ function openPromptTemplatesDialog(message) {
         padding: "12px 16px",
         borderBottom: "1px solid var(--uxp-host-border-color)",
     });
-    appendText(header, "h2", message.title, { margin: "0", fontSize: "16px" });
-    const closeButton = appendText(header, "button", message.closeText, { padding: "4px 12px" });
+    const title = appendText(header, "h2", message.title, { margin: "0", fontSize: "16px" });
+    const headerActions = applyStyles(document.createElement("div"), {
+        display: "flex",
+        gap: "8px",
+    });
+    const addButton = appendButton(headerActions, message.addText, { backgroundColor: "#34773d" });
+    const closeButton = appendButton(headerActions, message.closeText);
+    header.appendChild(headerActions);
     dialog.appendChild(header);
 
     const content = applyStyles(document.createElement("div"), {
@@ -122,78 +148,223 @@ function openPromptTemplatesDialog(message) {
         overflowY: "auto",
         boxSizing: "border-box",
     });
-    const items = message.items.filter(item => item && typeof item === "object");
-    if (!items.length) {
-        appendText(content, "p", message.emptyText, { width: "100%", textAlign: "center", opacity: "0.7" });
-    }
+    const editor = applyStyles(document.createElement("div"), {
+        display: "none",
+        flexDirection: "column",
+        gap: "10px",
+        height: "580px",
+        padding: "18px 24px",
+        boxSizing: "border-box",
+    });
+    dialog.appendChild(content);
+    dialog.appendChild(editor);
 
-    items.forEach(item => {
-        const card = applyStyles(document.createElement("div"), {
+    const showGallery = () => {
+        editor.style.display = "none";
+        content.style.display = "flex";
+        title.textContent = message.title;
+        addButton.style.display = "block";
+    };
+
+    let deleteOverlay = null;
+    const closeDeleteConfirm = () => {
+        if (deleteOverlay && deleteOverlay.parentNode) deleteOverlay.parentNode.removeChild(deleteOverlay);
+        deleteOverlay = null;
+    };
+    const showDeleteConfirm = item => {
+        closeDeleteConfirm();
+        const overlay = applyStyles(document.createElement("div"), {
             display: "flex",
-            position: "relative",
-            flexDirection: "column",
-            width: "calc(50% - 6px)",
-            height: "210px",
-            padding: "14px",
-            overflow: "hidden",
-            border: item.id === message.appliedTemplateId
-                ? "1px solid #34773d"
-                : "1px solid var(--uxp-host-border-color)",
-            borderRadius: "8px",
-            boxSizing: "border-box",
-        });
-        appendText(card, "h3", item.name, {
-            margin: "0 0 10px",
-            fontSize: "15px",
-        });
-        appendText(card, "div", item.prompt, {
-            flex: "1",
-            overflow: "hidden",
-            opacity: "0.82",
-            fontSize: "13px",
-            lineHeight: "1.55",
-            whiteSpace: "pre-wrap",
-        });
-
-        const actions = applyStyles(document.createElement("div"), {
-            display: "none",
             position: "absolute",
+            top: "0",
             right: "0",
             bottom: "0",
             left: "0",
+            zIndex: "20",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.62)",
+        });
+        const confirmDialog = applyStyles(document.createElement("div"), {
+            width: "360px",
+            padding: "22px",
+            border: "1px solid var(--uxp-host-border-color)",
+            borderRadius: "10px",
+            backgroundColor: "var(--uxp-host-background-color)",
+            boxSizing: "border-box",
+        });
+        appendText(confirmDialog, "h3", message.deleteText, { margin: "0 0 12px", fontSize: "16px" });
+        appendText(confirmDialog, "p", message.deleteConfirmText, { margin: "0 0 20px", opacity: "0.82", fontSize: "13px" });
+        const confirmActions = applyStyles(document.createElement("div"), {
+            display: "flex",
+            justifyContent: "flex-end",
             gap: "8px",
-            padding: "10px",
-            backgroundColor: "rgba(20, 20, 20, 0.9)",
         });
-        const useButton = appendText(
-            actions,
-            "div",
-            item.id === message.appliedTemplateId ? message.cancelText : message.useText,
-            {
-                flex: "1",
-                padding: "7px 10px",
+        const cancelDeleteButton = appendButton(confirmActions, message.cancelText);
+        const confirmDeleteButton = appendButton(confirmActions, message.confirmText, { backgroundColor: "#d9363e" });
+        confirmDialog.appendChild(confirmActions);
+        overlay.appendChild(confirmDialog);
+        dialog.appendChild(overlay);
+        deleteOverlay = overlay;
+
+        cancelDeleteButton.addEventListener("click", closeDeleteConfirm);
+        confirmDeleteButton.addEventListener("click", () => {
+            if (!postPromptTemplateAction(item.id, "delete")) return;
+            items = items.filter(entry => entry.id !== item.id);
+            appliedIds.delete(item.id);
+            closeDeleteConfirm();
+            renderCards();
+        });
+    };
+
+    const renderCards = () => {
+        content.textContent = "";
+        if (!items.length) {
+            appendText(content, "p", message.emptyText, { width: "100%", textAlign: "center", opacity: "0.7" });
+            return;
+        }
+
+        items.forEach(item => {
+            const applied = appliedIds.has(item.id);
+            const card = applyStyles(document.createElement("div"), {
+                display: "flex",
+                position: "relative",
+                flexDirection: "column",
+                width: "calc(50% - 6px)",
+                height: "210px",
+                padding: "14px",
+                overflow: "hidden",
+                border: applied ? "2px solid #3f914a" : "1px solid var(--uxp-host-border-color)",
+                borderRadius: "8px",
+                boxSizing: "border-box",
+            });
+            appendText(card, "h3", item.name, {
+                margin: "0 72px 10px 0",
+                fontSize: "15px",
+            });
+            if (applied) appendText(card, "span", message.appliedText, {
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                padding: "3px 8px",
                 color: "#fff",
-                border: "1px solid #34773d",
-                borderRadius: "5px",
+                borderRadius: "10px",
                 backgroundColor: "#34773d",
-                textAlign: "center",
-                cursor: "pointer",
-            },
-        );
-        useButton.setAttribute("role", "button");
-        useButton.addEventListener("click", event => {
-            event.stopPropagation();
-            if (postPromptTemplateAction(item.id, "use")) removePromptTemplatesDialog();
+                fontSize: "11px",
+            });
+            appendText(card, "div", item.prompt, {
+                flex: "1",
+                overflow: "hidden",
+                opacity: "0.82",
+                fontSize: "13px",
+                lineHeight: "1.55",
+                whiteSpace: "pre-wrap",
+            });
+
+            const actions = applyStyles(document.createElement("div"), {
+                display: "none",
+                position: "absolute",
+                right: "0",
+                bottom: "0",
+                left: "0",
+                gap: "8px",
+                padding: "10px",
+                backgroundColor: "rgba(20, 20, 20, 0.9)",
+            });
+            const useButton = appendButton(actions, applied ? message.cancelText : message.useText, {
+                flex: "1",
+                backgroundColor: applied ? "rgba(80, 80, 80, 0.95)" : "#34773d",
+            });
+            useButton.addEventListener("click", event => {
+                event.stopPropagation();
+                if (!postPromptTemplateAction(item.id, "use")) return;
+                if (applied) appliedIds.delete(item.id);
+                else appliedIds.add(item.id);
+                renderCards();
+            });
+            const editButton = appendButton(actions, message.editText);
+            editButton.addEventListener("click", event => {
+                event.stopPropagation();
+                showEditor(item);
+            });
+            const deleteButton = appendButton(actions, message.deleteText, { backgroundColor: "#d9363e" });
+            deleteButton.addEventListener("click", event => {
+                event.stopPropagation();
+                showDeleteConfirm(item);
+            });
+            card.appendChild(actions);
+            card.addEventListener("mouseenter", () => { actions.style.display = "flex"; });
+            card.addEventListener("mouseleave", () => { actions.style.display = "none"; });
+            content.appendChild(card);
         });
-        card.appendChild(actions);
-        card.addEventListener("mouseenter", () => { actions.style.display = "flex"; });
-        card.addEventListener("mouseleave", () => { actions.style.display = "none"; });
-        content.appendChild(card);
-    });
-    dialog.appendChild(content);
+    };
+
+    const showEditor = item => {
+        content.style.display = "none";
+        editor.style.display = "flex";
+        editor.textContent = "";
+        title.textContent = item ? message.editText : message.addText;
+        addButton.style.display = "none";
+
+        const nameInput = applyStyles(document.createElement("sp-textfield"), { width: "100%" });
+        const nameLabel = appendText(nameInput, "sp-label", message.nameText);
+        nameLabel.setAttribute("slot", "label");
+        editor.appendChild(nameInput);
+        const nameValue = item ? String(item.name) : "";
+        nameInput.setAttribute("value", nameValue);
+        nameInput.value = nameValue;
+        const promptInput = applyStyles(document.createElement("sp-textarea"), {
+            width: "100%",
+            minHeight: "180px",
+            flex: "1",
+        });
+        const promptLabel = appendText(promptInput, "sp-label", message.promptText);
+        promptLabel.setAttribute("slot", "label");
+        editor.appendChild(promptInput);
+        const promptValue = item ? String(item.prompt) : "";
+        promptInput.setAttribute("value", promptValue);
+        promptInput.value = promptValue;
+        const errorText = appendText(editor, "div", "", { minHeight: "18px", color: "#ff5f62", fontSize: "12px" });
+        const footer = applyStyles(document.createElement("div"), {
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "8px",
+            marginTop: "auto",
+        });
+        const cancelButton = appendButton(footer, message.cancelText);
+        const saveButton = appendButton(footer, message.saveText, { backgroundColor: "#34773d" });
+        editor.appendChild(footer);
+
+        cancelButton.addEventListener("click", showGallery);
+        saveButton.addEventListener("click", () => {
+            const name = String(nameInput.value || "").trim();
+            const prompt = String(promptInput.value || "").trim();
+            if (!name) {
+                errorText.textContent = message.missingNameText;
+                return;
+            }
+            if (!prompt) {
+                errorText.textContent = message.missingPromptText;
+                return;
+            }
+            if (items.some(entry => entry.id !== (item && item.id) && String(entry.name).toLowerCase() === name.toLowerCase())) {
+                errorText.textContent = message.duplicateNameText;
+                return;
+            }
+            const saved = { id: item ? item.id : `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name, prompt };
+            if (!postPromptTemplateAction(saved.id, "save", saved)) return;
+            items = item ? items.map(entry => entry.id === saved.id ? saved : entry) : [...items, saved];
+            renderCards();
+            showGallery();
+        });
+        nameInput.focus();
+    };
+
+    renderCards();
     document.body.appendChild(dialog);
     promptTemplatesDialog = dialog;
 
+    addButton.addEventListener("click", () => showEditor(null));
     closeButton.addEventListener("click", removePromptTemplatesDialog);
     dialog.addEventListener("close", () => {
         if (promptTemplatesDialog === dialog) promptTemplatesDialog = null;
@@ -201,6 +372,7 @@ function openPromptTemplatesDialog(message) {
     });
     try {
         dialog.show();
+        makeDialogResponsive(dialog, content, editor);
     } catch (error) {
         removePromptTemplatesDialog();
         console.error("Failed to open prompt templates window", error);
@@ -305,7 +477,7 @@ function openHistoryDialog(message) {
             const image = applyStyles(document.createElement("img"), {
                 display: "block",
                 maxWidth: "100%",
-                maxHeight: "460px",
+                maxHeight: "calc(100vh - 200px)",
                 objectFit: "contain",
             });
             image.src = imageSource;
@@ -642,6 +814,7 @@ function openHistoryDialog(message) {
     });
     try {
         dialog.show();
+        makeDialogResponsive(dialog, content, detail);
     } catch (error) {
         removeHistoryDialog();
         console.error("Failed to open generation history window", error);

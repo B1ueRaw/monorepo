@@ -151,6 +151,7 @@ export const enUS = {
   'comfy_simple.prompt_templates.custom_section': 'My Templates',
   'comfy_simple.prompt_templates.custom_empty': 'No custom templates yet.',
   'comfy_simple.prompt_templates.applied_success': 'Template applied.',
+  'comfy_simple.prompt_templates.applied_tag': 'In use',
   'comfy_simple.prompt_templates.applied_failed': 'Failed to apply template.',
   'comfy_simple.prompt_templates.apply_unavailable': 'Applying templates is unavailable right now.',
   'comfy_simple.prompt_templates.apply_failed_missing_binding': 'Failed to update the {{part}} prompt: no matching widget binding.',

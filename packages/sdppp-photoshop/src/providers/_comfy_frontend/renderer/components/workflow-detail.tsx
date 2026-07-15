@@ -138,7 +138,6 @@ export function WorkflowDetail({
       <div className="workflow-edit-top">
         <ComfyWorkflowControlPanel
           currentWorkflow={currentWorkflow}
-          hasPromptNode={!!promptNodeId}
           setCurrentWorkflow={setCurrentWorkflow}
           uploading={uploading}
           setUploading={setUploading}

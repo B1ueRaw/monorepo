@@ -83,8 +83,8 @@ export function useTaskExecutor({
         const liveValues = getCurrentValues ? getCurrentValues() : currentValues;
         const processedValues = beforeCreateTaskHook ? beforeCreateTaskHook(liveValues) : liveValues;
         const promptState = MainStore.getState();
-        const template = promptState.promptTemplates.find(item => item.id === promptState.selectedPromptTemplateId);
-        const finalValues = injectPromptTemplate(processedValues, currentNodes, template);
+        const templates = promptState.promptTemplates.filter(item => promptState.appliedPromptTemplateIds.includes(item.id));
+        const finalValues = injectPromptTemplate(processedValues, currentNodes, templates);
         const promptSnapshot = getPromptSnapshot(finalValues, currentNodes);
         
         try {
@@ -104,7 +104,7 @@ export function useTaskExecutor({
                         maskHandle: null,
                         history: {
                             ...promptSnapshot,
-                            templateName: template?.name,
+                            templateName: templates.map(item => item.name).join(', ') || undefined,
                             source: selectedModel,
                         },
                     })));
