@@ -15,14 +15,6 @@ function applyStyles(element, styles) {
     return element;
 }
 
-function makeDialogResponsive(dialog, ...sections) {
-    requestAnimationFrame(() => {
-        dialog.style.width = "100vw";
-        dialog.style.height = "100vh";
-        sections.forEach(section => { section.style.height = "calc(100vh - 60px)"; });
-    });
-}
-
 function appendText(parent, tag, value, styles = {}) {
     const element = applyStyles(document.createElement(tag), styles);
     element.textContent = typeof value === "string" ? value : "";
@@ -113,16 +105,20 @@ function openPromptTemplatesDialog(message) {
     });
 
     const dialog = applyStyles(document.createElement("dialog"), {
-        width: "720px",
-        height: "640px",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
         padding: "0",
         position: "relative",
         overflow: "hidden",
+        boxSizing: "border-box",
         color: "var(--uxp-host-text-color)",
         backgroundColor: "var(--uxp-host-background-color)",
     });
     const header = applyStyles(document.createElement("div"), {
         display: "flex",
+        flex: "0 0 auto",
         alignItems: "center",
         justifyContent: "space-between",
         padding: "12px 16px",
@@ -143,7 +139,8 @@ function openPromptTemplatesDialog(message) {
         alignContent: "flex-start",
         flexWrap: "wrap",
         gap: "12px",
-        height: "580px",
+        flex: "1",
+        minHeight: "0",
         padding: "12px 16px",
         overflowY: "auto",
         boxSizing: "border-box",
@@ -152,7 +149,8 @@ function openPromptTemplatesDialog(message) {
         display: "none",
         flexDirection: "column",
         gap: "10px",
-        height: "580px",
+        flex: "1",
+        minHeight: "0",
         padding: "18px 24px",
         boxSizing: "border-box",
     });
@@ -371,8 +369,11 @@ function openPromptTemplatesDialog(message) {
         if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
     });
     try {
-        dialog.show();
-        makeDialogResponsive(dialog, content, editor);
+        dialog.show({
+            resize: "both",
+            size: { width: 720, height: 640 },
+            minSize: { width: 520, height: 360 },
+        });
     } catch (error) {
         removePromptTemplatesDialog();
         console.error("Failed to open prompt templates window", error);
@@ -384,16 +385,20 @@ function openHistoryDialog(message) {
     removeHistoryDialog();
 
     const dialog = applyStyles(document.createElement("dialog"), {
-        width: "720px",
-        height: "640px",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
         padding: "0",
         position: "relative",
         overflow: "hidden",
+        boxSizing: "border-box",
         color: "var(--uxp-host-text-color)",
         backgroundColor: "var(--uxp-host-background-color)",
     });
     const header = applyStyles(document.createElement("div"), {
         display: "flex",
+        flex: "0 0 auto",
         alignItems: "center",
         justifyContent: "space-between",
         padding: "12px 16px",
@@ -414,14 +419,16 @@ function openHistoryDialog(message) {
     dialog.appendChild(header);
 
     const content = applyStyles(document.createElement("div"), {
-        height: "580px",
+        flex: "1",
+        minHeight: "0",
         padding: "12px 16px",
         overflowY: "auto",
         boxSizing: "border-box",
     });
     const detail = applyStyles(document.createElement("div"), {
         display: "none",
-        height: "580px",
+        flex: "1",
+        minHeight: "0",
         padding: "16px 24px",
         overflowY: "auto",
         boxSizing: "border-box",
@@ -477,7 +484,7 @@ function openHistoryDialog(message) {
             const image = applyStyles(document.createElement("img"), {
                 display: "block",
                 maxWidth: "100%",
-                maxHeight: "calc(100vh - 200px)",
+                maxHeight: "460px",
                 objectFit: "contain",
             });
             image.src = imageSource;
@@ -813,8 +820,11 @@ function openHistoryDialog(message) {
         if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
     });
     try {
-        dialog.show();
-        makeDialogResponsive(dialog, content, detail);
+        dialog.show({
+            resize: "both",
+            size: { width: 900, height: 820 },
+            minSize: { width: 520, height: 360 },
+        });
     } catch (error) {
         removeHistoryDialog();
         console.error("Failed to open generation history window", error);
