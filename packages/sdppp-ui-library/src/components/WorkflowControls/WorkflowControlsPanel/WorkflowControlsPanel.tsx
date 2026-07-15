@@ -13,6 +13,7 @@ export interface WorkflowControlsPanelProps {
   rowGap?: number;
   middleRowGap?: number;
   headerRow?: ThreeColumnRowSlots;
+  headerExtra?: ReactNode;
   bodyRow?: ThreeColumnRowSlots;
   middleTopRow?: ThreeColumnRowSlots;
   middleBottomRow?: ThreeColumnRowSlots;
@@ -65,6 +66,7 @@ export const WorkflowControlsPanel = ({
   rowGap = DEFAULT_GAP,
   middleRowGap,
   headerRow,
+  headerExtra,
   bodyRow,
   middleTopRow,
   middleBottomRow,
@@ -128,6 +130,7 @@ export const WorkflowControlsPanel = ({
           />
         </div>
       ) : null}
+      {headerExtra}
       {hasBody ? (
         <div className="workflow-controls-body">
           <WorkflowThreeColumnRow

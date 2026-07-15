@@ -143,7 +143,7 @@ function AppContent({ psTheme, showingPreview, previewImageList, generationHisto
                 </Flex>
             ) : null}
             <SDPPPGateway>
-                {!showingPreview ? <PromptTemplateSelector /> : null}
+                {!showingPreview && provider !== 'ComfyUI' ? <PromptTemplateSelector /> : null}
             </SDPPPGateway>
         </ConfigProvider>
     </div>

@@ -18,6 +18,7 @@ describe('WorkflowControlsPanel', () => {
         center: <div data-testid="header-center">header</div>,
         right: <div data-testid="header-right">right</div>,
       },
+      headerExtra: <div data-testid="header-extra">extra</div>,
       bodyRow: {
         left: <div data-testid="body-left">L</div>,
         right: <div data-testid="body-right">R</div>,
@@ -37,6 +38,9 @@ describe('WorkflowControlsPanel', () => {
     expect(screen.getByTestId('header-center')).toBeInTheDocument();
     expect(screen.getByTestId('header-left')).toBeInTheDocument();
     expect(screen.getByTestId('header-right')).toBeInTheDocument();
+    expect(screen.getByTestId('header-extra')).toBeInTheDocument();
+    expect(screen.getByTestId('header-extra').previousElementSibling).toHaveClass('workflow-controls-header');
+    expect(screen.getByTestId('header-extra').nextElementSibling).toHaveClass('workflow-controls-body');
     expect(screen.getByTestId('body-left')).toBeInTheDocument();
     expect(screen.getByTestId('body-right')).toBeInTheDocument();
     expect(screen.getByTestId('middle-top-left')).toBeInTheDocument();
