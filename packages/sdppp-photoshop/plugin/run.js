@@ -3,8 +3,12 @@ const { entrypoints, storage } = require("uxp");
 
 const HISTORY_MESSAGE = "sdppp:open-generation-history";
 const HISTORY_ACTION_MESSAGE = "sdppp:generation-history-action";
+const PROMPT_TEMPLATES_MESSAGE = "sdppp:open-prompt-templates";
+const PROMPT_TEMPLATES_ACTION_MESSAGE = "sdppp:prompt-template-action";
 let historyDialog = null;
 let historyWebview = null;
+let promptTemplatesDialog = null;
+let promptTemplatesWebview = null;
 
 function applyStyles(element, styles) {
     Object.assign(element.style, styles);
@@ -60,6 +64,147 @@ function removeHistoryDialog() {
     historyDialog = null;
     try { dialog.close(); } catch (_) { }
     if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
+}
+
+function postPromptTemplateAction(itemId, action) {
+    const webview = promptTemplatesWebview
+        || document.getElementById("content-webview")
+        || document.querySelector("webview");
+    if (!webview || typeof webview.postMessage !== "function") return false;
+    try {
+        webview.postMessage({ type: PROMPT_TEMPLATES_ACTION_MESSAGE, id: itemId || "", action }, "*");
+        return true;
+    } catch (error) {
+        console.error("Failed to send prompt template action", error);
+        return false;
+    }
+}
+
+function removePromptTemplatesDialog() {
+    if (!promptTemplatesDialog) return;
+    const dialog = promptTemplatesDialog;
+    promptTemplatesDialog = null;
+    try { dialog.close(); } catch (_) { }
+    if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
+}
+
+function openPromptTemplatesDialog(message) {
+    if (!message || !Array.isArray(message.items)) return;
+    removePromptTemplatesDialog();
+
+    const dialog = applyStyles(document.createElement("dialog"), {
+        width: "720px",
+        height: "640px",
+        padding: "0",
+        position: "relative",
+        overflow: "hidden",
+        color: "var(--uxp-host-text-color)",
+        backgroundColor: "var(--uxp-host-background-color)",
+    });
+    const header = applyStyles(document.createElement("div"), {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "12px 16px",
+        borderBottom: "1px solid var(--uxp-host-border-color)",
+    });
+    appendText(header, "h2", message.title, { margin: "0", fontSize: "16px" });
+    const closeButton = appendText(header, "button", message.closeText, { padding: "4px 12px" });
+    dialog.appendChild(header);
+
+    const content = applyStyles(document.createElement("div"), {
+        display: "flex",
+        alignContent: "flex-start",
+        flexWrap: "wrap",
+        gap: "12px",
+        height: "580px",
+        padding: "12px 16px",
+        overflowY: "auto",
+        boxSizing: "border-box",
+    });
+    const items = message.items.filter(item => item && typeof item === "object");
+    if (!items.length) {
+        appendText(content, "p", message.emptyText, { width: "100%", textAlign: "center", opacity: "0.7" });
+    }
+
+    items.forEach(item => {
+        const card = applyStyles(document.createElement("div"), {
+            display: "flex",
+            position: "relative",
+            flexDirection: "column",
+            width: "calc(50% - 6px)",
+            height: "210px",
+            padding: "14px",
+            overflow: "hidden",
+            border: item.id === message.appliedTemplateId
+                ? "1px solid #34773d"
+                : "1px solid var(--uxp-host-border-color)",
+            borderRadius: "8px",
+            boxSizing: "border-box",
+        });
+        appendText(card, "h3", item.name, {
+            margin: "0 0 10px",
+            fontSize: "15px",
+        });
+        appendText(card, "div", item.prompt, {
+            flex: "1",
+            overflow: "hidden",
+            opacity: "0.82",
+            fontSize: "13px",
+            lineHeight: "1.55",
+            whiteSpace: "pre-wrap",
+        });
+
+        const actions = applyStyles(document.createElement("div"), {
+            display: "none",
+            position: "absolute",
+            right: "0",
+            bottom: "0",
+            left: "0",
+            gap: "8px",
+            padding: "10px",
+            backgroundColor: "rgba(20, 20, 20, 0.9)",
+        });
+        const useButton = appendText(
+            actions,
+            "div",
+            item.id === message.appliedTemplateId ? message.cancelText : message.useText,
+            {
+                flex: "1",
+                padding: "7px 10px",
+                color: "#fff",
+                border: "1px solid #34773d",
+                borderRadius: "5px",
+                backgroundColor: "#34773d",
+                textAlign: "center",
+                cursor: "pointer",
+            },
+        );
+        useButton.setAttribute("role", "button");
+        useButton.addEventListener("click", event => {
+            event.stopPropagation();
+            if (postPromptTemplateAction(item.id, "use")) removePromptTemplatesDialog();
+        });
+        card.appendChild(actions);
+        card.addEventListener("mouseenter", () => { actions.style.display = "flex"; });
+        card.addEventListener("mouseleave", () => { actions.style.display = "none"; });
+        content.appendChild(card);
+    });
+    dialog.appendChild(content);
+    document.body.appendChild(dialog);
+    promptTemplatesDialog = dialog;
+
+    closeButton.addEventListener("click", removePromptTemplatesDialog);
+    dialog.addEventListener("close", () => {
+        if (promptTemplatesDialog === dialog) promptTemplatesDialog = null;
+        if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
+    });
+    try {
+        dialog.show();
+    } catch (error) {
+        removePromptTemplatesDialog();
+        console.error("Failed to open prompt templates window", error);
+    }
 }
 
 function openHistoryDialog(message) {
@@ -329,6 +474,9 @@ window.addEventListener("message", event => {
     if (event.data?.type === HISTORY_MESSAGE) {
         historyWebview = event.source;
         openHistoryDialog(event.data);
+    } else if (event.data?.type === PROMPT_TEMPLATES_MESSAGE) {
+        promptTemplatesWebview = event.source;
+        openPromptTemplatesDialog(event.data);
     }
 });
 

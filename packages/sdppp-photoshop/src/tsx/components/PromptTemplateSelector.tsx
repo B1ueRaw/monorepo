@@ -1,65 +1,57 @@
 import { Button, Flex, Form, Input, Modal, Popconfirm, Select, Tooltip, Typography } from 'antd'
-import { History as HistoryIcon, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { BookOpenText, History as HistoryIcon, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import { sdpppSDK, useTranslation } from '@sdppp/common'
 import { createComfyPromptInjection, getPromptSnapshot, injectPromptTemplate, type PromptTemplate } from '../../utils/promptTemplates'
+import { openPromptTemplateWindow, parsePromptTemplateWindowAction } from '../../utils/promptTemplateWindow'
 import { customapiStore } from '../../providers/_customapi/renderer/customapi.store'
 import { replicateStore } from '../../providers/_replicate/renderer/replicate.store'
 import { runninghubStore } from '../../providers/_runninghub/renderer/runninghub.store'
-import { MainStore } from '../App.store'
 import { openGenerationHistoryWindow } from '../../utils/generationHistoryWindow'
+import { MainStore } from '../App.store'
 
 type TemplateForm = Pick<PromptTemplate, 'name' | 'prompt'>
+
+export function PromptTemplateLibraryButton() {
+    const { t } = useTranslation()
+    const templates = MainStore(state => state.promptTemplates)
+    const appliedId = MainStore(state => state.appliedPromptTemplateId)
+
+    return (
+        <Tooltip title={t('comfy_simple.prompt_templates.manage_tooltip')}>
+            <Button
+                type="text"
+                size="small"
+                icon={<BookOpenText size={14} />}
+                onClick={() => openPromptTemplateWindow(templates, appliedId, t)}
+            >
+                {t('comfy_simple.prompt_templates.button')}
+            </Button>
+        </Tooltip>
+    )
+}
 
 export function PromptTemplateSelector() {
     const { t } = useTranslation()
     const provider = MainStore(state => state.provider)
     const templates = MainStore(state => state.promptTemplates)
     const selectedId = MainStore(state => state.selectedPromptTemplateId)
+    const appliedId = MainStore(state => state.appliedPromptTemplateId)
     const history = MainStore(state => state.generationHistory)
     const [editing, setEditing] = useState<PromptTemplate | null>()
     const [applying, setApplying] = useState(false)
-    const [appliedTemplate, setAppliedTemplate] = useState<PromptTemplate>()
     const [applyError, setApplyError] = useState('')
     const [form] = Form.useForm<TemplateForm>()
 
-    if (!provider) return null
+    const selected = templates.find(template => template.id === selectedId)
+    const appliedTemplate = templates.find(template => template.id === appliedId)
 
-    const openEditor = (template: PromptTemplate | null) => {
+    const openEditor = useCallback((template: PromptTemplate | null) => {
         setEditing(template)
         form.setFieldsValue(template ?? { name: '', prompt: '' })
-    }
+    }, [form])
 
-    const save = async () => {
-        const values = await form.validateFields()
-        const name = values.name.trim()
-        if (templates.some(template => template.id !== editing?.id && template.name.toLowerCase() === name.toLowerCase())) {
-            form.setFields([{ name: 'name', errors: [t('comfy_simple.prompt_templates.duplicate_key')] }])
-            return
-        }
-
-        const template: PromptTemplate = {
-            id: editing?.id ?? `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            name,
-            prompt: values.prompt.trim(),
-        }
-        MainStore.setState({
-            promptTemplates: editing
-                ? templates.map(item => item.id === template.id ? template : item)
-                : [...templates, template],
-            selectedPromptTemplateId: template.id,
-        })
-        setEditing(undefined)
-    }
-
-    const remove = () => MainStore.setState({
-        promptTemplates: templates.filter(template => template.id !== selectedId),
-        selectedPromptTemplateId: '',
-    })
-
-    const selected = templates.find(template => template.id === selectedId)
-
-    const updateTemplate = async (template: PromptTemplate, remove = false) => {
+    const updateTemplate = useCallback(async (template: PromptTemplate, remove = false) => {
         if (provider === 'ComfyUI') {
             const state = sdpppSDK.stores.ComfyStore.getState()
             const updates = createComfyPromptInjection(state.widgetableStructure, state.widgetableValues, template, remove).updates
@@ -82,26 +74,89 @@ export function PromptTemplateSelector() {
             part: t('comfy_simple.prompt_templates.positive_label'),
         }))
         state.setCurrentValues(values)
+    }, [provider, t])
+
+    const save = async () => {
+        const values = await form.validateFields()
+        const name = values.name.trim()
+        if (templates.some(template => template.id !== editing?.id && template.name.toLowerCase() === name.toLowerCase())) {
+            form.setFields([{ name: 'name', errors: [t('comfy_simple.prompt_templates.duplicate_key')] }])
+            return
+        }
+
+        const template: PromptTemplate = {
+            id: editing?.id ?? `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            name,
+            prompt: values.prompt.trim(),
+        }
+        try {
+            if (editing && appliedTemplate?.id === editing.id) {
+                await updateTemplate(appliedTemplate, true)
+                await updateTemplate(template)
+            }
+            MainStore.setState({
+                promptTemplates: editing
+                    ? templates.map(item => item.id === template.id ? template : item)
+                    : [...templates, template],
+                selectedPromptTemplateId: template.id,
+                appliedPromptTemplateId: appliedTemplate?.id === template.id ? template.id : appliedId,
+            })
+            setEditing(undefined)
+        } catch (error) {
+            setApplyError(error instanceof Error ? error.message : t('comfy_simple.prompt_templates.applied_failed'))
+        }
     }
 
-    const apply = async () => {
-        if (!selected) return
+    const remove = async () => {
+        const template = templates.find(item => item.id === selectedId)
+        if (!template) return
+        try {
+            if (appliedId === template.id) await updateTemplate(template, true)
+            MainStore.setState({
+                promptTemplates: templates.filter(item => item.id !== template.id),
+                selectedPromptTemplateId: '',
+                appliedPromptTemplateId: appliedId === template.id ? '' : appliedId,
+            })
+        } catch (error) {
+            setApplyError(error instanceof Error ? error.message : t('comfy_simple.prompt_templates.applied_failed'))
+        }
+    }
+
+    const toggleTemplate = useCallback(async (template: PromptTemplate) => {
         setApplying(true)
         setApplyError('')
         try {
             if (appliedTemplate) {
                 await updateTemplate(appliedTemplate, true)
-                setAppliedTemplate(undefined)
-            } else {
-                await updateTemplate(selected)
-                setAppliedTemplate(selected)
+                MainStore.setState({ appliedPromptTemplateId: '' })
+            }
+            if (appliedTemplate?.id !== template.id) {
+                await updateTemplate(template)
+                MainStore.setState({
+                    selectedPromptTemplateId: template.id,
+                    appliedPromptTemplateId: template.id,
+                })
             }
         } catch (error) {
             setApplyError(error instanceof Error ? error.message : t('comfy_simple.prompt_templates.applied_failed'))
         } finally {
             setApplying(false)
         }
-    }
+    }, [appliedTemplate, t, updateTemplate])
+
+    useEffect(() => {
+        const listener = (event: MessageEvent) => {
+            const command = parsePromptTemplateWindowAction(event.data)
+            if (!command) return
+            const template = MainStore.getState().promptTemplates.find(item => item.id === command.id)
+            if (!template) return
+            void toggleTemplate(template)
+        }
+        window.addEventListener('message', listener)
+        return () => window.removeEventListener('message', listener)
+    }, [toggleTemplate])
+
+    if (!provider) return null
 
     return (
         <>
@@ -118,7 +173,7 @@ export function PromptTemplateSelector() {
                             setApplying(true)
                             try {
                                 await updateTemplate(appliedTemplate, true)
-                                setAppliedTemplate(undefined)
+                                MainStore.setState({ appliedPromptTemplateId: '' })
                             } catch (error) {
                                 setApplyError(error instanceof Error ? error.message : t('comfy_simple.prompt_templates.applied_failed'))
                                 return
@@ -130,7 +185,7 @@ export function PromptTemplateSelector() {
                     }}
                     style={{ flex: 1 }}
                 />
-                <Button type="primary" loading={applying} disabled={!selected} onClick={apply}>
+                <Button type="primary" loading={applying} disabled={!selected} onClick={() => selected && void toggleTemplate(selected)}>
                     {t(appliedTemplate ? 'common.cancel' : 'common.apply')}
                 </Button>
                 <Tooltip title={t('comfy_simple.prompt_templates.add_title')}>
@@ -142,7 +197,7 @@ export function PromptTemplateSelector() {
                 <Popconfirm
                     title={t('comfy_simple.prompt_templates.delete_confirm_title')}
                     description={t('comfy_simple.prompt_templates.delete_confirm_content')}
-                    onConfirm={remove}
+                    onConfirm={() => void remove()}
                     disabled={!selected}
                 >
                     <Tooltip title={t('common.delete')}>

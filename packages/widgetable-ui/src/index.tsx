@@ -66,6 +66,7 @@ interface WorkflowEditProps {
     selectedItem?: any;
     onWidgetChange: (nodeID: string, widgetIndex: number, value: any, fieldInfo: WidgetableNode) => void;
     onTitleChange: (nodeID: string, title: string) => void;
+    onTitleRender?: (title: string, fieldInfo: WidgetableNode) => ReactNode;
 }
 
 // 渲染计数器
@@ -77,7 +78,8 @@ export default function WorkflowEdit({
     widgetableErrors,
 
     onWidgetChange,
-    onTitleChange
+    onTitleChange,
+    onTitleRender,
 }: WorkflowEditProps) {
     workflowEditRenderCount++;
 
@@ -157,6 +159,7 @@ export default function WorkflowEdit({
         onTitleChange,
         extraOptions: options,
         getRenderMeta,
+        onTitleRender,
     });
 
     const allRenderedFields = nodeIndexes.map(nodeID => {

@@ -54,6 +54,7 @@ export const MainStore = create<{
     autoSendSendingAll: boolean
     promptTemplates: PromptTemplate[]
     selectedPromptTemplateId: string
+    appliedPromptTemplateId: string
     generationHistory: GenerationHistoryItem[]
     downloadAndAppendImage: (image: {
         url: string,
@@ -79,6 +80,7 @@ export const MainStore = create<{
     autoSendSendingAll: false,
     promptTemplates: [],
     selectedPromptTemplateId: '',
+    appliedPromptTemplateId: '',
     generationHistory: [],
     previewImageList: [
     ],

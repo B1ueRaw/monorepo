@@ -10,6 +10,7 @@ interface UseWidgetableRendererProps {
     onTitleChange: (nodeID: string, title: string) => void;
     extraOptions?: any;
     getRenderMeta?: (fieldInfo: WidgetableNode, widgetIndex: number) => WidgetRenderMeta | undefined;
+    onTitleRender?: (title: string, fieldInfo: WidgetableNode) => ReactNode;
 }
 
 interface RenderFunctions {
@@ -25,7 +26,8 @@ export const useWidgetableRenderer = ({
     onWidgetChange,
     onTitleChange,
     extraOptions,
-    getRenderMeta
+    getRenderMeta,
+    onTitleRender,
 }: UseWidgetableRendererProps): RenderFunctions => {
     useWidgetableRendererCount++;
 
@@ -68,11 +70,12 @@ export const useWidgetableRenderer = ({
     }, [widgetableValues, onWidgetChange, getWidgetRenderer, extraOptions, getRenderMeta]);
 
     const renderTitle = useCallback((title: string, fieldInfo: WidgetableNode): ReactNode => {
+        if (onTitleRender) return onTitleRender(title, fieldInfo);
         // return <EditableTitle title={title} onTitleChange={(newTitle) => {
         //     onTitleChange(fieldInfo.id, newTitle);
         // }} />;
         return <div>{title} {fieldInfo.widgets[0]?.options?.required ? <span style={{ color: 'lightcoral' }}>*</span> : null}</div>;
-    }, []);
+    }, [onTitleRender]);
 
     return {
         renderWidget,

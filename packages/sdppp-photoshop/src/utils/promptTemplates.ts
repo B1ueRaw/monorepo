@@ -9,7 +9,7 @@ export interface PromptSnapshot {
     negativePrompt?: string
 }
 
-interface PromptNode {
+export interface PromptNode {
     id: string
     title?: string
     widgets?: Array<{ name?: string; outputType?: string }>
@@ -45,6 +45,10 @@ function promptNode(nodes: PromptNode[], role: PromptRole): PromptNode | undefin
     return nodes.find(node =>
         node.widgets?.some(widget => ['string', 'text', 'customtext'].includes(widget.outputType?.toLowerCase() ?? '')) && promptRole(node) === role
     )
+}
+
+export function findPositivePromptNode(nodes: PromptNode[]): PromptNode | undefined {
+    return promptNode(nodes, 'positive')
 }
 
 export function getPromptSnapshot(values: Record<string, any>, nodes: PromptNode[]): PromptSnapshot {

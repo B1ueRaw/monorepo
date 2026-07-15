@@ -2,11 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from 'zustand';
 import { shallow } from 'zustand/shallow';
 import { sdpppSDK } from '@sdppp/common';
+import type { WidgetableNode } from '@sdppp/common/schemas/schemas';
 import { WidgetableRenderer as WorkflowEdit } from '@sdppp/widgetable-ui';
 import './workflow-detail.less';
 import { comfyWorkflowStore } from '../comfy_frontend';
 import { ComfyWorkflowControlPanel } from './workflow-detail/components/ComfyWorkflowControlPanel';
 import { EMPTY_OBJECT } from './workflow-detail/constants';
+import { PromptTemplateLibraryButton } from '../../../../tsx/components/PromptTemplateSelector';
+import { findPositivePromptNode } from '../../../../utils/promptTemplates';
 
 // 渲染计数器
 let workflowDetailRenderCount = 0;
@@ -35,6 +38,11 @@ export function WorkflowDetail({
       : ''),
     [widgetableStructure],
   );
+  const promptNodeId = useMemo(() => {
+    const nodes = (widgetableStructure as any)?.nodes ?? {};
+    const indexes = (widgetableStructure as any)?.nodeIndexes ?? Object.keys(nodes);
+    return findPositivePromptNode(indexes.map((id: string) => nodes[id]).filter(Boolean))?.id;
+  }, [widgetableStructure]);
 
   const [uploading, setUploading] = useState<boolean>(false);
   const [prevWidgetableValues, setPrevWidgetableValues] = useState<Record<string, any>>(widgetableValues);
@@ -102,6 +110,16 @@ export function WorkflowDetail({
     });
   }, []);
 
+  const renderTitle = useCallback((title: string, fieldInfo: WidgetableNode) => (
+    <div className="workflow-field-title-content">
+      <span>
+        {title}
+        {fieldInfo.widgets[0]?.options?.required ? <span className="workflow-field-required"> *</span> : null}
+      </span>
+      {fieldInfo.id === promptNodeId ? <PromptTemplateLibraryButton /> : null}
+    </div>
+  ), [promptNodeId]);
+
   useEffect(() => {
     const nextHash = JSON.stringify(widgetableValues ?? EMPTY_OBJECT);
     const prevHash = prevWidgetableHashRef.current;
@@ -131,6 +149,7 @@ export function WorkflowDetail({
         widgetableErrors={widgetableErrors}
         onWidgetChange={handleWidgetChange}
         onTitleChange={handleTitleChange}
+        onTitleRender={renderTitle}
       />
     </div>
   );
