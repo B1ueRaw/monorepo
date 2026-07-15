@@ -21,6 +21,12 @@ export interface GenerationHistoryItem extends GenerationHistoryInput {
     id: string
     createdAt: number
     image: string
+    url?: string
+    fileName?: string
+    docId?: number
+    boundaryUri?: string | null
+    width?: number
+    height?: number
 }
 
 export const MainStore = create<{
@@ -155,11 +161,18 @@ export const MainStore = create<{
         };
 
         set((state) => {
+            const historyImage = thumbnail ?? url
             const historyItem = history ? {
                 ...history,
                 id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
                 createdAt: Date.now(),
-                image: thumbnail ?? url,
+                image: historyImage,
+                url: historyImage === url ? undefined : url,
+                fileName,
+                docId,
+                boundaryUri: boundaryUri ?? null,
+                width: (primary as any)?.width,
+                height: (primary as any)?.height,
             } : null
             return {
                 previewError: '',

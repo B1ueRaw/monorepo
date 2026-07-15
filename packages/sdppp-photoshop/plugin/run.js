@@ -2,7 +2,9 @@
 const { entrypoints, storage } = require("uxp");
 
 const HISTORY_MESSAGE = "sdppp:open-generation-history";
+const HISTORY_ACTION_MESSAGE = "sdppp:generation-history-action";
 let historyDialog = null;
+let historyWebview = null;
 
 function applyStyles(element, styles) {
     Object.assign(element.style, styles);
@@ -14,6 +16,42 @@ function appendText(parent, tag, value, styles = {}) {
     element.textContent = typeof value === "string" ? value : "";
     parent.appendChild(element);
     return element;
+}
+
+function appendHistoryIcon(parent, name) {
+    const icons = {
+        preview: "./icons/history-preview.png",
+        delete: "./icons/history-delete.png",
+        smartobject: "./icons/history-smartobject.png",
+        newdoc: "./icons/history-newdoc.png",
+        selection: "./icons/history-selection.png",
+    };
+    const icon = applyStyles(document.createElement("img"), {
+        display: "block",
+        width: "16px",
+        height: "16px",
+        pointerEvents: "none",
+    });
+    icon.src = icons[name] || "";
+    icon.alt = "";
+    parent.appendChild(icon);
+}
+
+function postHistoryAction(itemId, action) {
+    const webview = historyWebview
+        || document.getElementById("content-webview")
+        || document.querySelector("webview");
+    if (!webview || typeof webview.postMessage !== "function") {
+        console.warn("Generation history webview is unavailable");
+        return false;
+    }
+    try {
+        webview.postMessage({ type: HISTORY_ACTION_MESSAGE, id: itemId, action }, "*");
+        return true;
+    } catch (error) {
+        console.error("Failed to send generation history action", error);
+        return false;
+    }
 }
 
 function removeHistoryDialog() {
@@ -32,6 +70,8 @@ function openHistoryDialog(message) {
         width: "720px",
         height: "640px",
         padding: "0",
+        position: "relative",
+        overflow: "hidden",
         color: "var(--uxp-host-text-color)",
         backgroundColor: "var(--uxp-host-background-color)",
     });
@@ -57,6 +97,138 @@ function openHistoryDialog(message) {
         appendText(content, "p", message.emptyText, { textAlign: "center", opacity: "0.7" });
     }
 
+    const zoomLayer = applyStyles(document.createElement("div"), {
+        display: "none",
+        position: "absolute",
+        top: "0",
+        right: "0",
+        bottom: "0",
+        left: "0",
+        zIndex: "1000",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px",
+        boxSizing: "border-box",
+        backgroundColor: "rgba(0, 0, 0, 0.92)",
+        cursor: "zoom-out",
+    });
+    const zoomImage = applyStyles(document.createElement("img"), {
+        display: "block",
+        maxWidth: "100%",
+        maxHeight: "100%",
+        objectFit: "contain",
+    });
+    const zoomCloseButton = appendText(zoomLayer, "button", "×", {
+        position: "absolute",
+        top: "12px",
+        right: "12px",
+        width: "40px",
+        height: "40px",
+        padding: "0",
+        border: "0",
+        borderRadius: "20px",
+        color: "#fff",
+        backgroundColor: "rgba(0, 0, 0, 0.65)",
+        fontSize: "26px",
+        cursor: "pointer",
+    });
+    zoomCloseButton.title = typeof message.closeText === "string" ? message.closeText : "";
+    zoomCloseButton.setAttribute("aria-label", zoomCloseButton.title);
+    zoomLayer.insertBefore(zoomImage, zoomCloseButton);
+    const closeZoom = () => {
+        zoomLayer.style.display = "none";
+        zoomImage.removeAttribute("src");
+    };
+    const openZoom = (source, alt) => {
+        zoomImage.src = source;
+        zoomImage.alt = alt;
+        zoomLayer.style.display = "flex";
+    };
+    zoomLayer.addEventListener("click", closeZoom);
+    zoomImage.addEventListener("click", event => event.stopPropagation());
+    zoomCloseButton.addEventListener("click", event => {
+        event.stopPropagation();
+        closeZoom();
+    });
+
+    const createActionBar = (item, onDelete) => {
+        const bar = applyStyles(document.createElement("div"), {
+            display: "flex",
+            position: "absolute",
+            left: "50%",
+            bottom: "8px",
+            gap: "0",
+            transform: "translateX(-68px)",
+        });
+        const labels = message.actionLabels && typeof message.actionLabels === "object"
+            ? message.actionLabels
+            : {};
+        ["delete", "smartobject", "newdoc", "selection"].forEach(action => {
+            const danger = action === "delete";
+            const disabled = action === "selection" && item.canSelect === false;
+            const width = danger ? "56px" : "32px";
+            const button = applyStyles(document.createElement("div"), {
+                display: "flex",
+                position: "relative",
+                alignItems: "center",
+                justifyContent: "center",
+                width,
+                minWidth: width,
+                maxWidth: width,
+                height: "32px",
+                minHeight: "32px",
+                maxHeight: "32px",
+                margin: "0",
+                marginRight: action === "selection" ? "0" : "8px",
+                padding: "0",
+                border: danger ? "1px solid rgba(255, 255, 255, 0.7)" : "1px solid #34773d",
+                borderRadius: "6px",
+                color: "#fff",
+                backgroundColor: danger ? "rgba(20, 20, 20, 0.75)" : "#34773d",
+                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.35)",
+                boxSizing: "border-box",
+                cursor: disabled ? "not-allowed" : "pointer",
+                opacity: disabled ? "0.4" : "1",
+            });
+            button.title = typeof labels[action] === "string" ? labels[action] : action;
+            button.tabIndex = disabled ? -1 : 0;
+            button.setAttribute("role", "button");
+            button.setAttribute("aria-disabled", disabled ? "true" : "false");
+            button.setAttribute("aria-label", button.title);
+            const tooltip = appendText(button, "span", button.title, {
+                display: "none",
+                position: "absolute",
+                left: "50%",
+                bottom: "38px",
+                zIndex: "1",
+                padding: "3px 6px",
+                borderRadius: "4px",
+                color: "#fff",
+                backgroundColor: "rgba(0, 0, 0, 0.85)",
+                fontSize: "12px",
+                whiteSpace: "nowrap",
+                pointerEvents: "none",
+                transform: "translateX(-50%)",
+            });
+            appendHistoryIcon(button, action);
+            button.addEventListener("mouseenter", () => { tooltip.style.display = "block"; });
+            button.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+            const activate = event => {
+                event.stopPropagation();
+                if (disabled || !postHistoryAction(item.id, action)) return;
+                if (danger) onDelete();
+            };
+            button.addEventListener("click", activate);
+            button.addEventListener("keydown", event => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                activate(event);
+            });
+            bar.appendChild(button);
+        });
+        return bar;
+    };
+
     items.forEach(item => {
         const card = applyStyles(document.createElement("section"), {
             marginBottom: "12px",
@@ -66,16 +238,62 @@ function openHistoryDialog(message) {
         });
         const imageSource = typeof item.image === "string" ? item.image : "";
         if (imageSource && !/^javascript:/i.test(imageSource.trim())) {
+            const imageRow = applyStyles(document.createElement("div"), {
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: "8px",
+            });
+            const imageFrame = applyStyles(document.createElement("div"), {
+                display: "inline-block",
+                position: "relative",
+                maxWidth: "100%",
+                cursor: "zoom-in",
+            });
             const image = applyStyles(document.createElement("img"), {
                 display: "block",
-                width: "100%",
+                maxWidth: "100%",
                 maxHeight: "360px",
-                marginBottom: "8px",
                 objectFit: "contain",
             });
             image.src = imageSource;
             image.alt = typeof message.imageAlt === "string" ? message.imageAlt : "";
-            card.appendChild(image);
+            const hoverLayer = applyStyles(document.createElement("div"), {
+                display: "none",
+                position: "absolute",
+                top: "0",
+                right: "0",
+                bottom: "0",
+                left: "0",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                backgroundColor: "rgba(0, 0, 0, 0.52)",
+            });
+            const previewLabel = applyStyles(document.createElement("div"), {
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "14px",
+                fontWeight: "400",
+                pointerEvents: "none",
+            });
+            appendHistoryIcon(previewLabel, "preview");
+            appendText(previewLabel, "span", message.previewText, {});
+            hoverLayer.appendChild(previewLabel);
+            hoverLayer.appendChild(createActionBar(item, () => {
+                if (card.parentNode) card.parentNode.removeChild(card);
+                if (!content.querySelector("section")) {
+                    appendText(content, "p", message.emptyText, { textAlign: "center", opacity: "0.7" });
+                }
+            }));
+            hoverLayer.addEventListener("click", () => openZoom(imageSource, image.alt));
+            image.addEventListener("click", () => openZoom(imageSource, image.alt));
+            imageFrame.addEventListener("mouseenter", () => { hoverLayer.style.display = "flex"; });
+            imageFrame.addEventListener("mouseleave", () => { hoverLayer.style.display = "none"; });
+            imageFrame.appendChild(image);
+            imageFrame.appendChild(hoverLayer);
+            imageRow.appendChild(imageFrame);
+            card.appendChild(imageRow);
         }
         appendText(card, "div", item.meta, { marginBottom: "6px", opacity: "0.7", fontSize: "12px", whiteSpace: "pre-wrap" });
         if (item.template) {
@@ -90,6 +308,7 @@ function openHistoryDialog(message) {
         content.appendChild(card);
     });
     dialog.appendChild(content);
+    dialog.appendChild(zoomLayer);
     document.body.appendChild(dialog);
     historyDialog = dialog;
 
@@ -107,7 +326,10 @@ function openHistoryDialog(message) {
 }
 
 window.addEventListener("message", event => {
-    if (event.data?.type === HISTORY_MESSAGE) openHistoryDialog(event.data);
+    if (event.data?.type === HISTORY_MESSAGE) {
+        historyWebview = event.source;
+        openHistoryDialog(event.data);
+    }
 });
 
 const _id = Symbol("_id");

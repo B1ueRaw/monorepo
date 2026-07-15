@@ -6,6 +6,7 @@ export const enUS = {
   'generation_history.template': 'Template: {{name}}',
   'generation_history.image_alt': 'Generated image from history',
   'generation_history.prompt': 'Prompt',
+  'generation_history.preview': 'Preview',
   'image_history.title': 'Generated Images ({{count}})',
   'gateway.select_ai_service': 'Please select AI service',
   'provider.select.title': 'Select AI Service Provider',

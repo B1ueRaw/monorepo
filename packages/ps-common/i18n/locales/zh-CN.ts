@@ -6,6 +6,7 @@ export const zhCN = {
   'generation_history.template': '模板：{{name}}',
   'generation_history.image_alt': '历史生成图片',
   'generation_history.prompt': '提示词',
+  'generation_history.preview': '预览',
   'image_history.title': '历史生图（{{count}}）',
   'gateway.select_ai_service': '请选择AI服务',
   'provider.select.title': '选择 AI 服务提供商',
