@@ -227,7 +227,17 @@ function openHistoryDialog(message) {
         padding: "12px 16px",
         borderBottom: "1px solid var(--uxp-host-border-color)",
     });
-    appendText(header, "h2", message.title, { margin: "0", fontSize: "16px" });
+    const headerStart = applyStyles(document.createElement("div"), {
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+    });
+    const backButton = appendText(headerStart, "button", message.backText, {
+        display: "none",
+        padding: "4px 10px",
+    });
+    const title = appendText(headerStart, "h2", message.title, { margin: "0", fontSize: "16px" });
+    header.appendChild(headerStart);
     const closeButton = appendText(header, "button", message.closeText, { padding: "4px 12px" });
     dialog.appendChild(header);
 
@@ -237,64 +247,212 @@ function openHistoryDialog(message) {
         overflowY: "auto",
         boxSizing: "border-box",
     });
+    const detail = applyStyles(document.createElement("div"), {
+        display: "none",
+        height: "580px",
+        padding: "16px 24px",
+        overflowY: "auto",
+        boxSizing: "border-box",
+    });
     const items = message.items.filter(item => item && typeof item === "object");
+    const galleryEntries = new Map();
+    let visibleItemCount = items.length;
     if (!items.length) {
         appendText(content, "p", message.emptyText, { textAlign: "center", opacity: "0.7" });
     }
 
-    const zoomLayer = applyStyles(document.createElement("div"), {
-        display: "none",
-        position: "absolute",
-        top: "0",
-        right: "0",
-        bottom: "0",
-        left: "0",
-        zIndex: "1000",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "20px",
-        boxSizing: "border-box",
-        backgroundColor: "rgba(0, 0, 0, 0.92)",
-        cursor: "zoom-out",
-    });
-    const zoomImage = applyStyles(document.createElement("img"), {
-        display: "block",
-        maxWidth: "100%",
-        maxHeight: "100%",
-        objectFit: "contain",
-    });
-    const zoomCloseButton = appendText(zoomLayer, "button", "×", {
-        position: "absolute",
-        top: "12px",
-        right: "12px",
-        width: "40px",
-        height: "40px",
-        padding: "0",
-        border: "0",
-        borderRadius: "20px",
-        color: "#fff",
-        backgroundColor: "rgba(0, 0, 0, 0.65)",
-        fontSize: "26px",
-        cursor: "pointer",
-    });
-    zoomCloseButton.title = typeof message.closeText === "string" ? message.closeText : "";
-    zoomCloseButton.setAttribute("aria-label", zoomCloseButton.title);
-    zoomLayer.insertBefore(zoomImage, zoomCloseButton);
-    const closeZoom = () => {
-        zoomLayer.style.display = "none";
-        zoomImage.removeAttribute("src");
+    const removeGalleryItem = id => {
+        const entry = galleryEntries.get(id);
+        if (!entry) return;
+        if (entry.card.parentNode) entry.card.parentNode.removeChild(entry.card);
+        galleryEntries.delete(id);
+        visibleItemCount -= 1;
+        if (entry.cards.children.length === 0 && entry.section.parentNode) {
+            entry.section.parentNode.removeChild(entry.section);
+        }
+        if (visibleItemCount === 0) {
+            appendText(content, "p", message.emptyText, { textAlign: "center", opacity: "0.7" });
+        }
     };
-    const openZoom = (source, alt) => {
-        zoomImage.src = source;
-        zoomImage.alt = alt;
-        zoomLayer.style.display = "flex";
+
+    const showGallery = () => {
+        detail.style.display = "none";
+        content.style.display = "block";
+        backButton.style.display = "none";
+        title.textContent = message.title;
     };
-    zoomLayer.addEventListener("click", closeZoom);
-    zoomImage.addEventListener("click", event => event.stopPropagation());
-    zoomCloseButton.addEventListener("click", event => {
-        event.stopPropagation();
-        closeZoom();
-    });
+
+    const showDetail = (item, imageSource) => {
+        detail.textContent = "";
+        content.style.display = "none";
+        detail.style.display = "block";
+        backButton.style.display = "block";
+        detail.scrollTop = 0;
+
+        if (imageSource && !/^javascript:/i.test(imageSource.trim())) {
+            const imageRow = applyStyles(document.createElement("div"), {
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: "18px",
+            });
+            const imageFrame = applyStyles(document.createElement("div"), {
+                display: "inline-block",
+                position: "relative",
+                maxWidth: "100%",
+                overflow: "hidden",
+                cursor: "zoom-in",
+            });
+            const image = applyStyles(document.createElement("img"), {
+                display: "block",
+                maxWidth: "100%",
+                maxHeight: "460px",
+                objectFit: "contain",
+            });
+            image.src = imageSource;
+            image.alt = typeof message.imageAlt === "string" ? message.imageAlt : "";
+            const hoverLayer = applyStyles(document.createElement("div"), {
+                display: "none",
+                position: "absolute",
+                top: "0",
+                right: "0",
+                bottom: "0",
+                left: "0",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "rgba(0, 0, 0, 0.46)",
+            });
+            hoverLayer.appendChild(createActionBar(item, () => {
+                removeGalleryItem(item.id);
+                showGallery();
+            }));
+            const openPreview = () => {
+                const preview = applyStyles(document.createElement("div"), {
+                    display: "flex",
+                    position: "absolute",
+                    top: "0",
+                    right: "0",
+                    bottom: "0",
+                    left: "0",
+                    zIndex: "10",
+                    padding: "16px",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "rgba(0, 0, 0, 0.92)",
+                    boxSizing: "border-box",
+                    cursor: "zoom-out",
+                });
+                const previewImage = applyStyles(document.createElement("img"), {
+                    display: "block",
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                });
+                previewImage.src = imageSource;
+                previewImage.alt = image.alt;
+                preview.appendChild(previewImage);
+                const closePreview = () => {
+                    if (preview.parentNode) preview.parentNode.removeChild(preview);
+                };
+                preview.tabIndex = 0;
+                preview.setAttribute("role", "button");
+                preview.setAttribute("aria-label", message.closeText);
+                preview.addEventListener("click", closePreview);
+                preview.addEventListener("keydown", event => {
+                    if (event.key === "Escape" || event.key === "Enter" || event.key === " ") closePreview();
+                });
+                dialog.appendChild(preview);
+                preview.focus();
+            };
+            imageFrame.tabIndex = 0;
+            imageFrame.setAttribute("role", "button");
+            imageFrame.setAttribute("aria-label", typeof message.previewText === "string" ? message.previewText : "");
+            imageFrame.addEventListener("click", openPreview);
+            imageFrame.addEventListener("keydown", event => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                openPreview();
+            });
+            imageFrame.addEventListener("mouseenter", () => { hoverLayer.style.display = "flex"; });
+            imageFrame.addEventListener("mouseleave", () => { hoverLayer.style.display = "none"; });
+            imageFrame.appendChild(image);
+            imageFrame.appendChild(hoverLayer);
+            imageRow.appendChild(imageFrame);
+            detail.appendChild(imageRow);
+        }
+
+        appendText(detail, "div", item.meta, {
+            marginBottom: "10px",
+            fontSize: "14px",
+            lineHeight: "1.5",
+            whiteSpace: "pre-wrap",
+        });
+        if (item.template) {
+            appendText(detail, "div", item.template, { marginBottom: "18px", fontSize: "14px" });
+        }
+
+        const promptHeader = applyStyles(document.createElement("div"), {
+            display: "flex",
+            alignItems: "center",
+            marginBottom: "8px",
+        });
+        appendText(promptHeader, "strong", message.positiveLabel, { fontSize: "15px" });
+        const copyButton = appendText(promptHeader, "div", message.copyText, {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "24px",
+            marginLeft: "8px",
+            padding: "0 7px",
+            border: "1px solid #34773d",
+            borderRadius: "4px",
+            color: "#fff",
+            backgroundColor: "#34773d",
+            boxSizing: "border-box",
+            cursor: "pointer",
+            fontSize: "12px",
+        });
+        copyButton.tabIndex = 0;
+        copyButton.setAttribute("role", "button");
+        copyButton.addEventListener("click", async () => {
+            try {
+                await navigator.clipboard.writeText({
+                    "text/plain": typeof item.prompt === "string" ? item.prompt : "",
+                });
+                copyButton.textContent = "✓";
+                setTimeout(() => { copyButton.textContent = message.copyText; }, 1200);
+            } catch (error) {
+                console.error("Failed to copy generation prompt", error);
+            }
+        });
+        copyButton.addEventListener("keydown", event => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            copyButton.click();
+        });
+        detail.appendChild(promptHeader);
+        const promptText = applyStyles(document.createElement("textarea"), {
+            width: "100%",
+            height: "96px",
+            marginBottom: item.negativePrompt ? "18px" : "0",
+            padding: "10px 12px",
+            border: "1px solid var(--uxp-host-border-color)",
+            borderRadius: "6px",
+            color: "var(--uxp-host-text-color)",
+            backgroundColor: "rgba(0, 0, 0, 0.18)",
+            boxSizing: "border-box",
+            fontFamily: "inherit",
+            fontSize: "14px",
+            lineHeight: "1.6",
+            resize: "vertical",
+        });
+        promptText.value = typeof item.prompt === "string" ? item.prompt : "";
+        promptText.spellcheck = false;
+        detail.appendChild(promptText);
+        if (item.negativePrompt) {
+            appendText(detail, "strong", message.negativeLabel, { display: "block", marginBottom: "6px", fontSize: "15px" });
+            appendText(detail, "div", item.negativePrompt, { lineHeight: "1.6", whiteSpace: "pre-wrap", userSelect: "text" });
+        }
+    };
 
     const createActionBar = (item, onDelete) => {
         const bar = applyStyles(document.createElement("div"), {
@@ -302,16 +460,36 @@ function openHistoryDialog(message) {
             position: "absolute",
             left: "50%",
             bottom: "8px",
-            gap: "0",
-            transform: "translateX(-68px)",
+            width: "138px",
+            justifyContent: "space-between",
+            transform: "translateX(-50%)",
         });
         const labels = message.actionLabels && typeof message.actionLabels === "object"
             ? message.actionLabels
             : {};
+        const tooltip = appendText(bar, "div", "", {
+            display: "none",
+            position: "absolute",
+            right: "0",
+            left: "0",
+            bottom: "40px",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "28px",
+            padding: "5px 8px",
+            borderRadius: "4px",
+            color: "#fff",
+            backgroundColor: "rgba(0, 0, 0, 0.88)",
+            boxSizing: "border-box",
+            fontSize: "12px",
+            textAlign: "center",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+        });
         ["delete", "smartobject", "newdoc", "selection"].forEach(action => {
             const danger = action === "delete";
             const disabled = action === "selection" && item.canSelect === false;
-            const width = danger ? "56px" : "32px";
+            const width = "30px";
             const button = applyStyles(document.createElement("div"), {
                 display: "flex",
                 position: "relative",
@@ -324,7 +502,6 @@ function openHistoryDialog(message) {
                 minHeight: "32px",
                 maxHeight: "32px",
                 margin: "0",
-                marginRight: action === "selection" ? "0" : "8px",
                 padding: "0",
                 border: danger ? "1px solid rgba(255, 255, 255, 0.7)" : "1px solid #34773d",
                 borderRadius: "6px",
@@ -340,23 +517,11 @@ function openHistoryDialog(message) {
             button.setAttribute("role", "button");
             button.setAttribute("aria-disabled", disabled ? "true" : "false");
             button.setAttribute("aria-label", button.title);
-            const tooltip = appendText(button, "span", button.title, {
-                display: "none",
-                position: "absolute",
-                left: "50%",
-                bottom: "38px",
-                zIndex: "1",
-                padding: "3px 6px",
-                borderRadius: "4px",
-                color: "#fff",
-                backgroundColor: "rgba(0, 0, 0, 0.85)",
-                fontSize: "12px",
-                whiteSpace: "nowrap",
-                pointerEvents: "none",
-                transform: "translateX(-50%)",
-            });
             appendHistoryIcon(button, action);
-            button.addEventListener("mouseenter", () => { tooltip.style.display = "block"; });
+            button.addEventListener("mouseenter", () => {
+                tooltip.textContent = button.title;
+                tooltip.style.display = "flex";
+            });
             button.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
             const activate = event => {
                 event.stopPropagation();
@@ -374,31 +539,57 @@ function openHistoryDialog(message) {
         return bar;
     };
 
+    let currentDate = null;
+    let dateSection = null;
+    let cards = null;
     items.forEach(item => {
-        const card = applyStyles(document.createElement("section"), {
-            marginBottom: "12px",
-            padding: "12px",
-            border: "1px solid var(--uxp-host-border-color)",
-            borderRadius: "6px",
+        if (item.dateLabel !== currentDate) {
+            currentDate = item.dateLabel;
+            dateSection = applyStyles(document.createElement("section"), { marginBottom: "16px" });
+            appendText(dateSection, "div", item.dateLabel, {
+                marginBottom: "8px",
+                opacity: "0.65",
+                fontSize: "12px",
+            });
+            cards = applyStyles(document.createElement("div"), {
+                display: "flex",
+                alignContent: "flex-start",
+                flexWrap: "wrap",
+            });
+            dateSection.appendChild(cards);
+            content.appendChild(dateSection);
+        }
+
+        const currentSection = dateSection;
+        const currentCards = cards;
+        const card = applyStyles(document.createElement("div"), {
+            position: "relative",
+            width: "154px",
+            height: "154px",
+            marginRight: "16px",
+            marginBottom: "16px",
+            overflow: "hidden",
+            borderRadius: "5px",
+            backgroundColor: "rgba(127, 127, 127, 0.14)",
+            boxSizing: "border-box",
+            cursor: "zoom-in",
         });
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", typeof message.previewText === "string" ? message.previewText : "");
         const imageSource = typeof item.image === "string" ? item.image : "";
         if (imageSource && !/^javascript:/i.test(imageSource.trim())) {
-            const imageRow = applyStyles(document.createElement("div"), {
-                display: "flex",
-                justifyContent: "center",
-                marginBottom: "8px",
-            });
-            const imageFrame = applyStyles(document.createElement("div"), {
-                display: "inline-block",
-                position: "relative",
-                maxWidth: "100%",
-                cursor: "zoom-in",
-            });
             const image = applyStyles(document.createElement("img"), {
                 display: "block",
-                maxWidth: "100%",
-                maxHeight: "360px",
-                objectFit: "contain",
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                transform: "translate(-50%, -50%) scale(1)",
+                transformOrigin: "center center",
+                transition: "transform 160ms ease",
             });
             image.src = imageSource;
             image.alt = typeof message.imageAlt === "string" ? message.imageAlt : "";
@@ -412,51 +603,38 @@ function openHistoryDialog(message) {
                 alignItems: "center",
                 justifyContent: "center",
                 color: "#fff",
-                backgroundColor: "rgba(0, 0, 0, 0.52)",
+                backgroundColor: "rgba(0, 0, 0, 0.46)",
             });
-            const previewLabel = applyStyles(document.createElement("div"), {
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "14px",
-                fontWeight: "400",
-                pointerEvents: "none",
+            hoverLayer.appendChild(createActionBar(item, () => removeGalleryItem(item.id)));
+            card.addEventListener("mouseenter", () => {
+                image.style.transform = "translate(-50%, -50%) scale(1.08)";
+                hoverLayer.style.display = "flex";
             });
-            appendHistoryIcon(previewLabel, "preview");
-            appendText(previewLabel, "span", message.previewText, {});
-            hoverLayer.appendChild(previewLabel);
-            hoverLayer.appendChild(createActionBar(item, () => {
-                if (card.parentNode) card.parentNode.removeChild(card);
-                if (!content.querySelector("section")) {
-                    appendText(content, "p", message.emptyText, { textAlign: "center", opacity: "0.7" });
-                }
-            }));
-            hoverLayer.addEventListener("click", () => openZoom(imageSource, image.alt));
-            image.addEventListener("click", () => openZoom(imageSource, image.alt));
-            imageFrame.addEventListener("mouseenter", () => { hoverLayer.style.display = "flex"; });
-            imageFrame.addEventListener("mouseleave", () => { hoverLayer.style.display = "none"; });
-            imageFrame.appendChild(image);
-            imageFrame.appendChild(hoverLayer);
-            imageRow.appendChild(imageFrame);
-            card.appendChild(imageRow);
+            card.addEventListener("mouseleave", () => {
+                image.style.transform = "translate(-50%, -50%) scale(1)";
+                hoverLayer.style.display = "none";
+            });
+            card.appendChild(image);
+            card.appendChild(hoverLayer);
+        } else {
+            appendText(card, "span", message.imageAlt, { opacity: "0.6" });
         }
-        appendText(card, "div", item.meta, { marginBottom: "6px", opacity: "0.7", fontSize: "12px", whiteSpace: "pre-wrap" });
-        if (item.template) {
-            appendText(card, "div", item.template, { marginBottom: "8px", fontSize: "12px" });
-        }
-        appendText(card, "strong", message.positiveLabel, { display: "block", marginBottom: "4px" });
-        appendText(card, "div", item.prompt, { marginBottom: item.negativePrompt ? "10px" : "0", whiteSpace: "pre-wrap" });
-        if (item.negativePrompt) {
-            appendText(card, "strong", message.negativeLabel, { display: "block", marginBottom: "4px" });
-            appendText(card, "div", item.negativePrompt, { whiteSpace: "pre-wrap" });
-        }
-        content.appendChild(card);
+        const openDetail = () => showDetail(item, imageSource);
+        card.addEventListener("click", openDetail);
+        card.addEventListener("keydown", event => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            openDetail();
+        });
+        currentCards.appendChild(card);
+        galleryEntries.set(item.id, { card, cards: currentCards, section: currentSection });
     });
     dialog.appendChild(content);
-    dialog.appendChild(zoomLayer);
+    dialog.appendChild(detail);
     document.body.appendChild(dialog);
     historyDialog = dialog;
 
+    backButton.addEventListener("click", showGallery);
     closeButton.addEventListener("click", removeHistoryDialog);
     dialog.addEventListener("close", () => {
         if (historyDialog === dialog) historyDialog = null;

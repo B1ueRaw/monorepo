@@ -79,6 +79,8 @@ describe('createGenerationHistoryWindowMessage', () => {
             title: 'generation_history.title:1',
             previewText: 'generation_history.preview:',
             positiveLabel: 'generation_history.prompt:',
+            backText: 'comfy.back:',
+            copyText: 'image.copy:',
             actionLabels: {
                 delete: 'image.delete_current:',
                 smartobject: 'image.import_as_smartobject:',
@@ -87,6 +89,7 @@ describe('createGenerationHistoryWindowMessage', () => {
             },
             items: [{
                 id: 'history-1',
+                createdAt: 0,
                 image: 'data:image/png;base64,image',
                 canSelect: true,
                 template: 'generation_history.template:Portrait',
@@ -94,7 +97,18 @@ describe('createGenerationHistoryWindowMessage', () => {
                 negativePrompt: 'blur',
             }],
         })
+        expect(message.items[0].dateLabel).toMatch(/^\d{2}-\d{2}$/)
         expect(message.items[0].meta).toContain('\nComfyUI')
+    })
+
+    it('sorts history newest first for date grouping', () => {
+        const t = (key: TranslationKey) => key
+        const message = createGenerationHistoryWindowMessage([
+            { ...historyItem, id: 'older', createdAt: 1 },
+            { ...historyItem, id: 'newer', createdAt: 2 },
+        ], t)
+
+        expect(message.items.map(item => item.id)).toEqual(['newer', 'older'])
     })
 })
 

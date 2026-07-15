@@ -12,6 +12,7 @@
     "enableAlerts": true
   },
   "requiredPermissions": {
+    "clipboard": "readAndWrite",
     "network": {
       "domains": "all"
     },

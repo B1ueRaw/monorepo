@@ -75,21 +75,30 @@ export function createGenerationHistoryWindowMessage(history: GenerationHistoryI
         previewText: t('generation_history.preview'),
         positiveLabel: t('generation_history.prompt'),
         negativeLabel: t('comfy_simple.prompt_templates.negative_label'),
+        backText: t('comfy.back'),
+        copyText: t('image.copy'),
         actionLabels: {
             delete: t('image.delete_current'),
             smartobject: t('image.import_as_smartobject'),
             newdoc: t('image.import_as_newdoc'),
             selection: t('image.import_selection_button'),
         },
-        items: history.map(item => ({
-            id: item.id,
-            image: item.image,
-            canSelect: Boolean(resolveDocumentId(item)),
-            meta: `${new Date(item.createdAt).toLocaleString()}\n${item.source}`,
-            template: item.templateName ? t('generation_history.template', { name: item.templateName }) : '',
-            prompt: item.prompt,
-            negativePrompt: item.negativePrompt ?? '',
-        })),
+        items: [...history]
+            .sort((a, b) => b.createdAt - a.createdAt)
+            .map(item => {
+                const createdAt = new Date(item.createdAt)
+                return {
+                    id: item.id,
+                    createdAt: item.createdAt,
+                    dateLabel: `${String(createdAt.getMonth() + 1).padStart(2, '0')}-${String(createdAt.getDate()).padStart(2, '0')}`,
+                    image: item.image,
+                    canSelect: Boolean(resolveDocumentId(item)),
+                    meta: `${createdAt.toLocaleString()}\n${item.source}`,
+                    template: item.templateName ? t('generation_history.template', { name: item.templateName }) : '',
+                    prompt: item.prompt,
+                    negativePrompt: item.negativePrompt ?? '',
+                }
+            }),
     }
 }
 
