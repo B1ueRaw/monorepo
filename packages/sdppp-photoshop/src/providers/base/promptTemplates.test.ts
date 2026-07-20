@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { createComfyPromptInjection, getPromptSnapshot, injectPromptTemplate } from '../../utils/promptTemplates'
+import {
+    createComfyPromptInjection,
+    filterPresentPromptTemplates,
+    getComfyPromptSnapshot,
+    getPromptSnapshot,
+    injectPromptTemplate,
+    preparePromptRun,
+} from '../../utils/promptTemplates'
 
 describe('prompt template injection', () => {
     it('injects API and Comfy prompts without changing stored values', () => {
@@ -65,6 +72,19 @@ describe('prompt template injection', () => {
             prompt: 'portrait',
             negativePrompt: 'bad anatomy',
         })
+        expect(getComfyPromptSnapshot(
+            { nodes: {
+                '25': { id: '25', title: 'Prompt', widgets: [{ outputType: 'string' }] },
+                '26': { id: '26', title: 'Negative Prompt', widgets: [{ outputType: 'string' }] },
+            } },
+            { '25': ['portrait'], '26': ['bad anatomy'] },
+        )).toEqual({ prompt: 'portrait', negativePrompt: 'bad anatomy' })
+        expect(filterPresentPromptTemplates('portrait', [template])).toEqual([])
+        expect(filterPresentPromptTemplates('cinematic\nportrait', [template])).toEqual([template])
+        const staleAppliedRun = preparePromptRun(values, nodes, [template])
+        expect(staleAppliedRun.values).toBe(values)
+        expect(staleAppliedRun.promptSnapshot.prompt).toBe('a cat')
+        expect(staleAppliedRun.presentTemplates).toEqual([])
 
         const visiblePrompt = createComfyPromptInjection(
             { nodes: {

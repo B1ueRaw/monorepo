@@ -45,18 +45,16 @@ vi.mock('../../tsx/App.store', () => ({
 }))
 
 vi.mock('../../utils/promptTemplates', () => ({
-    createComfyPromptInjection: () => ({
-        updates: [{ nodeID: 'prompt', widgetIndex: 0, value: 'injected' }],
-        restore: [{ nodeID: 'prompt', widgetIndex: 0, value: '' }],
-        prompt: 'injected',
-    }),
+    getComfyPromptSnapshot: () => ({ prompt: 'manual prompt' }),
+    filterPresentPromptTemplates: () => [],
 }))
 
 import { ComfyTask } from './ComfyTask'
 
-describe('ComfyTask prompt injection', () => {
-    it('restores the prompt only after the run stream is consumed', async () => {
+describe('ComfyTask prompt handling', () => {
+    it('does not re-inject a stale applied template when running', async () => {
         mocks.events.length = 0
+        mocks.setWidgetValue.mockClear()
         mocks.run.mockImplementationOnce(async () => {
             mocks.events.push('run')
             return {
@@ -68,16 +66,17 @@ describe('ComfyTask prompt injection', () => {
             }
         })
 
+        const handleImageResult = vi.fn()
         await new ComfyTask({ size: 1 }, 'workflow', 1, null, null, {
-            handleImageResult: vi.fn(),
+            handleImageResult,
         }).promise
 
         expect(mocks.events).toEqual([
-            'set:injected',
             'run',
             'stream:start',
             'stream:end',
-            'set:',
         ])
+        expect(mocks.setWidgetValue).not.toHaveBeenCalled()
+        expect(handleImageResult).not.toHaveBeenCalled()
     })
 })

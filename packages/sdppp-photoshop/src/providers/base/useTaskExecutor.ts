@@ -3,7 +3,7 @@ import { buildBoundaryUri } from '@sdppp/resourcing/src/resource-uris';
 import { useEffect, useState } from 'react';
 import { MainStore } from '../../tsx/App.store';
 import { useUploadPasses } from './upload-pass-context';
-import { getPromptSnapshot, injectPromptTemplate } from '../../utils/promptTemplates';
+import { preparePromptRun } from '../../utils/promptTemplates';
 
 export interface UseTaskExecutorOptions {
     selectedModel: string;
@@ -83,12 +83,13 @@ export function useTaskExecutor({
         const liveValues = getCurrentValues ? getCurrentValues() : currentValues;
         const processedValues = beforeCreateTaskHook ? beforeCreateTaskHook(liveValues) : liveValues;
         const promptState = MainStore.getState();
-        const templates = promptState.promptTemplates.filter(item => promptState.appliedPromptTemplateIds.includes(item.id));
-        const finalValues = injectPromptTemplate(processedValues, currentNodes, templates);
-        const promptSnapshot = getPromptSnapshot(finalValues, currentNodes);
+        const appliedTemplates = promptState.promptTemplates.filter(item => promptState.appliedPromptTemplateIds.includes(item.id));
+        // Templates are written when the user applies them. Never re-inject them while running:
+        // processedValues is the visible, authoritative prompt state for this task.
+        const promptRun = preparePromptRun(processedValues, currentNodes, appliedTemplates);
         
         try {
-            const task = await createTask(selectedModel, finalValues);
+            const task = await createTask(selectedModel, promptRun.values);
             setCurrentTask(task);
             setLastStartTime(Date.now());
             if (task) {
@@ -103,8 +104,8 @@ export function useTaskExecutor({
                         maskUri: null,
                         maskHandle: null,
                         history: {
-                            ...promptSnapshot,
-                            templateName: templates.map(item => item.name).join(', ') || undefined,
+                            ...promptRun.promptSnapshot,
+                            templateName: promptRun.presentTemplates.map(item => item.name).join(', ') || undefined,
                             source: selectedModel,
                         },
                     })));

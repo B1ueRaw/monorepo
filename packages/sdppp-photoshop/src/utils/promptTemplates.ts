@@ -31,8 +31,14 @@ function promptRole(node: PromptNode): PromptRole | null {
 function mergePrompt(template: string, current: unknown): string {
     const prefix = template.trim()
     const value = typeof current === 'string' ? current.trim() : ''
-    if (`\n${value}\n`.includes(`\n${prefix}\n`)) return value
+    if (containsPromptBlock(prefix, value)) return value
     return value ? `${prefix}\n${value}` : prefix
+}
+
+function containsPromptBlock(template: string, current: unknown): boolean {
+    const block = template.trim()
+    const value = typeof current === 'string' ? current.trim() : ''
+    return !!block && `\n${value}\n`.includes(`\n${block}\n`)
 }
 
 function removePrompt(template: string, current: unknown): string {
@@ -59,6 +65,41 @@ export function getPromptSnapshot(values: Record<string, any>, nodes: PromptNode
     const prompt = positive && typeof values[positive.id] === 'string' ? values[positive.id].trim() : ''
     const negativePrompt = negative && typeof values[negative.id] === 'string' ? values[negative.id].trim() : ''
     return { prompt, negativePrompt: negativePrompt || undefined }
+}
+
+export function getComfyPromptSnapshot(
+    structure: { nodes?: Record<string, PromptNode>; nodeIndexes?: string[] } | null | undefined,
+    values: Record<string, any[]> | null | undefined,
+): PromptSnapshot {
+    const nodes = structure?.nodes ?? {}
+    const orderedNodes = (structure?.nodeIndexes ?? Object.keys(nodes)).map(id => nodes[id]).filter(Boolean)
+    const readPrompt = (role: PromptRole) => {
+        const node = promptNode(orderedNodes, role)
+        if (!node) return ''
+        const widgetIndex = node.widgets!.findIndex(widget => ['string', 'text', 'customtext'].includes(widget.outputType?.toLowerCase() ?? ''))
+        const value = values?.[node.id]?.[widgetIndex]
+        return typeof value === 'string' ? value.trim() : ''
+    }
+    const prompt = readPrompt('positive')
+    const negativePrompt = readPrompt('negative')
+    return { prompt, negativePrompt: negativePrompt || undefined }
+}
+
+export function filterPresentPromptTemplates(prompt: unknown, templates: PromptTemplate[]): PromptTemplate[] {
+    return templates.filter(template => containsPromptBlock(template.prompt, prompt))
+}
+
+export function preparePromptRun(
+    values: Record<string, any>,
+    nodes: PromptNode[],
+    appliedTemplates: PromptTemplate[],
+) {
+    const promptSnapshot = getPromptSnapshot(values, nodes)
+    return {
+        values,
+        promptSnapshot,
+        presentTemplates: filterPresentPromptTemplates(promptSnapshot.prompt, appliedTemplates),
+    }
 }
 
 export function injectPromptTemplate(

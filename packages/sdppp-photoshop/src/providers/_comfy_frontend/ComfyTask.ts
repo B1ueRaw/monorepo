@@ -1,7 +1,7 @@
 import { sdpppSDK, t } from '@sdppp/common';
 import { MainStore } from '../../tsx/App.store';
 import type { GenerationHistoryInput } from '../../tsx/App.store';
-import { createComfyPromptInjection } from '../../utils/promptTemplates';
+import { filterPresentPromptTemplates, getComfyPromptSnapshot } from '../../utils/promptTemplates';
 
 export interface ComfyTaskImageContext {
     workflowName: string;
@@ -93,61 +93,49 @@ export class ComfyTask {
     private async executeComfyTask(runParams: { size: number, mode?: 'app' | 'api' }, workflowName: string): Promise<any[]> {
         try {
             const promptState = MainStore.getState();
-            const templates = promptState.promptTemplates.filter(item => promptState.appliedPromptTemplateIds.includes(item.id));
+            const appliedTemplates = promptState.promptTemplates.filter(item => promptState.appliedPromptTemplateIds.includes(item.id));
             const comfyState = sdpppSDK.stores.ComfyStore.getState();
-            const injection = createComfyPromptInjection(
+            // Applying a template already updates the visible widget value. Running must use that
+            // value as-is so stale applied state cannot silently put removed text back.
+            const promptSnapshot = getComfyPromptSnapshot(
                 comfyState.widgetableStructure,
                 comfyState.widgetableValues,
-                templates,
             );
-            if (injection.updates.length) {
-                await sdpppSDK.plugins.ComfyCaller.setWidgetValue({ values: injection.updates });
-            }
+            const presentTemplates = filterPresentPromptTemplates(promptSnapshot.prompt, appliedTemplates);
 
             const images: any[] = [];
             let processedCount = 0;
-            try {
-                const result = await sdpppSDK.plugins.ComfyCaller.run(runParams);
-                for await (const item of result) {
-                    if (this.cancelled) {
-                        throw new Error(t('comfy.error.task_cancelled', { defaultValue: 'Task cancelled' }));
-                    }
-
-                    processedCount++;
-                    this.progress = Math.min((processedCount / runParams.size) * 100, 95);
-                    this.progressMessage = t('comfy.task.processing_progress', {
-                        processed: processedCount,
-                        total: runParams.size,
-                        defaultValue: 'Processing {{processed}}/{{total}}'
-                    });
-
-                    await this.updatePhotoshopProgress();
-
-                    if (item.images) {
-                        images.push(...item.images);
-                        for (const image of item.images) {
-                            await this.handleImageResult(image, {
-                                workflowName,
-                                docId: this.docId,
-                                boundaryUri: this.boundaryUri,
-                                maskUri: this.maskUri,
-                                replaceExisting: this.replaceExisting,
-                                history: {
-                                    prompt: injection.prompt,
-                                    negativePrompt: injection.negativePrompt,
-                                    templateName: templates.map(item => item.name).join(', ') || undefined,
-                                    source: workflowName,
-                                },
-                            });
-                        }
-                    }
+            const result = await sdpppSDK.plugins.ComfyCaller.run(runParams);
+            for await (const item of result) {
+                if (this.cancelled) {
+                    throw new Error(t('comfy.error.task_cancelled', { defaultValue: 'Task cancelled' }));
                 }
-            } finally {
-                if (injection.restore.length) {
-                    try {
-                        await sdpppSDK.plugins.ComfyCaller.setWidgetValue({ values: injection.restore });
-                    } catch (error) {
-                        console.warn('Failed to restore ComfyUI prompt values:', error);
+
+                processedCount++;
+                this.progress = Math.min((processedCount / runParams.size) * 100, 95);
+                this.progressMessage = t('comfy.task.processing_progress', {
+                    processed: processedCount,
+                    total: runParams.size,
+                    defaultValue: 'Processing {{processed}}/{{total}}'
+                });
+
+                await this.updatePhotoshopProgress();
+
+                if (item.images) {
+                    images.push(...item.images);
+                    for (const image of item.images) {
+                        await this.handleImageResult(image, {
+                            workflowName,
+                            docId: this.docId,
+                            boundaryUri: this.boundaryUri,
+                            maskUri: this.maskUri,
+                            replaceExisting: this.replaceExisting,
+                            history: {
+                                ...promptSnapshot,
+                                templateName: presentTemplates.map(item => item.name).join(', ') || undefined,
+                                source: workflowName,
+                            },
+                        });
                     }
                 }
             }
