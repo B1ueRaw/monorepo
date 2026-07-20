@@ -116,9 +116,9 @@ export function WorkflowDetail({
         {title}
         {fieldInfo.widgets[0]?.options?.required ? <span className="workflow-field-required"> *</span> : null}
       </span>
-      {fieldInfo.id === promptNodeId ? <PromptTemplateLibraryButton /> : null}
+      {fieldInfo.id === promptNodeId ? <PromptTemplateLibraryButton contextId={currentWorkflow} /> : null}
     </div>
-  ), [promptNodeId]);
+  ), [currentWorkflow, promptNodeId]);
 
   useEffect(() => {
     const nextHash = JSON.stringify(widgetableValues ?? EMPTY_OBJECT);

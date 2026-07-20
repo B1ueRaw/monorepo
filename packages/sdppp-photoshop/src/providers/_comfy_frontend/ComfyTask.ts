@@ -2,6 +2,7 @@ import { sdpppSDK, t } from '@sdppp/common';
 import { MainStore } from '../../tsx/App.store';
 import type { GenerationHistoryInput } from '../../tsx/App.store';
 import { filterPresentPromptTemplates, getComfyPromptSnapshot } from '../../utils/promptTemplates';
+import { createPromptTemplateContextKey, getAppliedPromptTemplateIds } from '../../utils/promptTemplateContexts';
 
 export interface ComfyTaskImageContext {
     workflowName: string;
@@ -93,7 +94,9 @@ export class ComfyTask {
     private async executeComfyTask(runParams: { size: number, mode?: 'app' | 'api' }, workflowName: string): Promise<any[]> {
         try {
             const promptState = MainStore.getState();
-            const appliedTemplates = promptState.promptTemplates.filter(item => promptState.appliedPromptTemplateIds.includes(item.id));
+            const contextKey = createPromptTemplateContextKey('ComfyUI', workflowName);
+            const appliedTemplateIds = getAppliedPromptTemplateIds(promptState.appliedPromptTemplateIdsByContext, contextKey);
+            const appliedTemplates = promptState.promptTemplates.filter(item => appliedTemplateIds.includes(item.id));
             const comfyState = sdpppSDK.stores.ComfyStore.getState();
             // Applying a template already updates the visible widget value. Running must use that
             // value as-is so stale applied state cannot silently put removed text back.

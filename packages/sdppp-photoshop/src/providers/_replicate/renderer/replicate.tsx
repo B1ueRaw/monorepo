@@ -159,6 +159,7 @@ function ReplicateRendererForm({
 
     const { runError, progressMessage, handleRun, handleCancel, isRunning, canCancel } = useTaskExecutor({
         selectedModel,
+        promptContextId: selectedModel,
         currentValues,
         getCurrentValues: () => replicateStore.getState().currentValues,
         createTask,

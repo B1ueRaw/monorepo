@@ -8,16 +8,34 @@ import { customapiStore } from '../../providers/_customapi/renderer/customapi.st
 import { replicateStore } from '../../providers/_replicate/renderer/replicate.store'
 import { runninghubStore } from '../../providers/_runninghub/renderer/runninghub.store'
 import { openGenerationHistoryWindow } from '../../utils/generationHistoryWindow'
+import {
+    createPromptTemplateContextKey,
+    getAppliedPromptTemplateIds,
+    removePromptTemplateFromAllContexts,
+    setAppliedPromptTemplateIds,
+} from '../../utils/promptTemplateContexts'
 import { MainStore } from '../App.store'
 
 type TemplateForm = Pick<PromptTemplate, 'name' | 'prompt'>
 
-export function PromptTemplateSelector({ libraryOnly = false }: { libraryOnly?: boolean } = {}) {
+export function PromptTemplateSelector({
+    libraryOnly = false,
+    contextId,
+}: { libraryOnly?: boolean; contextId?: string } = {}) {
     const { t } = useTranslation()
     const provider = MainStore(state => state.provider)
     const templates = MainStore(state => state.promptTemplates)
     const selectedId = MainStore(state => state.selectedPromptTemplateId)
-    const appliedIds = MainStore(state => state.appliedPromptTemplateIds)
+    const customApiFormat = customapiStore(state => state.format)
+    const customApiModel = customapiStore(state => state.selectedModel)
+    const replicateModel = replicateStore(state => state.selectedModel)
+    const runningHubWebappId = runninghubStore(state => state.webappId)
+    const resolvedContextId = contextId ?? (provider === 'CustomAPI' ? `${customApiFormat}:${customApiModel}`
+        : provider === 'Replicate' ? replicateModel
+            : provider === 'RunningHub' ? runningHubWebappId
+                : '')
+    const contextKey = createPromptTemplateContextKey(provider, resolvedContextId)
+    const appliedIds = MainStore(state => getAppliedPromptTemplateIds(state.appliedPromptTemplateIdsByContext, contextKey))
     const history = MainStore(state => state.generationHistory)
     const [editing, setEditing] = useState<PromptTemplate | null>()
     const [applying, setApplying] = useState(false)
@@ -60,24 +78,38 @@ export function PromptTemplateSelector({ libraryOnly = false }: { libraryOnly?: 
     const saveTemplate = useCallback(async (template: PromptTemplate) => {
         const state = MainStore.getState()
         const existing = state.promptTemplates.find(item => item.id === template.id)
+        const contextAppliedIds = getAppliedPromptTemplateIds(state.appliedPromptTemplateIdsByContext, contextKey)
+        const existingApplied = !!existing && contextAppliedIds.includes(existing.id)
         if (state.promptTemplates.some(item => item.id !== template.id && item.name.toLowerCase() === template.name.toLowerCase())) return false
         try {
-            if (existing && state.appliedPromptTemplateIds.includes(existing.id)) {
+            if (existingApplied) {
                 await updateTemplate(existing, true)
                 await updateTemplate(template)
+            }
+            let appliedPromptTemplateIdsByContext = state.appliedPromptTemplateIdsByContext
+            if (existing) {
+                appliedPromptTemplateIdsByContext = removePromptTemplateFromAllContexts(appliedPromptTemplateIdsByContext, existing.id)
+                if (existingApplied) {
+                    appliedPromptTemplateIdsByContext = setAppliedPromptTemplateIds(
+                        appliedPromptTemplateIdsByContext,
+                        contextKey,
+                        contextAppliedIds,
+                    )
+                }
             }
             MainStore.setState({
                 promptTemplates: existing
                     ? state.promptTemplates.map(item => item.id === template.id ? template : item)
                     : [...state.promptTemplates, template],
                 selectedPromptTemplateId: template.id,
+                appliedPromptTemplateIdsByContext,
             })
             return true
         } catch (error) {
             setApplyError(error instanceof Error ? error.message : t('comfy_simple.prompt_templates.applied_failed'))
             return false
         }
-    }, [t, updateTemplate])
+    }, [contextKey, t, updateTemplate])
 
     const save = async () => {
         const values = await form.validateFields()
@@ -98,36 +130,45 @@ export function PromptTemplateSelector({ libraryOnly = false }: { libraryOnly?: 
         const template = state.promptTemplates.find(item => item.id === id)
         if (!template) return
         try {
-            if (state.appliedPromptTemplateIds.includes(template.id)) await updateTemplate(template, true)
+            const contextAppliedIds = getAppliedPromptTemplateIds(state.appliedPromptTemplateIdsByContext, contextKey)
+            if (contextAppliedIds.includes(template.id)) await updateTemplate(template, true)
             MainStore.setState({
                 promptTemplates: state.promptTemplates.filter(item => item.id !== template.id),
                 selectedPromptTemplateId: state.selectedPromptTemplateId === template.id ? '' : state.selectedPromptTemplateId,
-                appliedPromptTemplateIds: state.appliedPromptTemplateIds.filter(item => item !== template.id),
+                appliedPromptTemplateIdsByContext: removePromptTemplateFromAllContexts(
+                    state.appliedPromptTemplateIdsByContext,
+                    template.id,
+                ),
             })
         } catch (error) {
             setApplyError(error instanceof Error ? error.message : t('comfy_simple.prompt_templates.applied_failed'))
         }
-    }, [selectedId, t, updateTemplate])
+    }, [contextKey, selectedId, t, updateTemplate])
 
     const toggleTemplate = useCallback(async (template: PromptTemplate) => {
         setApplying(true)
         setApplyError('')
         try {
             const state = MainStore.getState()
-            const applied = state.appliedPromptTemplateIds.includes(template.id)
+            const contextAppliedIds = getAppliedPromptTemplateIds(state.appliedPromptTemplateIdsByContext, contextKey)
+            const applied = contextAppliedIds.includes(template.id)
             await updateTemplate(template, applied)
             MainStore.setState({
                 selectedPromptTemplateId: template.id,
-                appliedPromptTemplateIds: applied
-                    ? state.appliedPromptTemplateIds.filter(item => item !== template.id)
-                    : [...state.appliedPromptTemplateIds, template.id],
+                appliedPromptTemplateIdsByContext: setAppliedPromptTemplateIds(
+                    state.appliedPromptTemplateIdsByContext,
+                    contextKey,
+                    applied
+                        ? contextAppliedIds.filter(item => item !== template.id)
+                        : [...contextAppliedIds, template.id],
+                ),
             })
         } catch (error) {
             setApplyError(error instanceof Error ? error.message : t('comfy_simple.prompt_templates.applied_failed'))
         } finally {
             setApplying(false)
         }
-    }, [t, updateTemplate])
+    }, [contextKey, t, updateTemplate])
 
     useEffect(() => {
         const listener = (event: MessageEvent) => {
@@ -229,6 +270,6 @@ export function PromptTemplateSelector({ libraryOnly = false }: { libraryOnly?: 
     )
 }
 
-export function PromptTemplateLibraryButton() {
-    return <PromptTemplateSelector libraryOnly />
+export function PromptTemplateLibraryButton({ contextId }: { contextId: string }) {
+    return <PromptTemplateSelector libraryOnly contextId={contextId} />
 }

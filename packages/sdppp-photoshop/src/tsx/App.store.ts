@@ -7,6 +7,7 @@ import { createFileResourceFromExternal } from '@sdppp/resourcing/src/@sideweb/f
 import { loadRemoteConfig } from '@sdppp/vite-remote-config-loader'
 import { buildBoundaryUri } from '@sdppp/resourcing/src/resource-uris'
 import type { PromptTemplate } from '../utils/promptTemplates'
+import type { AppliedPromptTemplateIdsByContext } from '../utils/promptTemplateContexts'
 
 export type SendMode = 'smartobject' | 'newdoc' | 'selection';
 
@@ -54,7 +55,7 @@ export const MainStore = create<{
     autoSendSendingAll: boolean
     promptTemplates: PromptTemplate[]
     selectedPromptTemplateId: string
-    appliedPromptTemplateIds: string[]
+    appliedPromptTemplateIdsByContext: AppliedPromptTemplateIdsByContext
     generationHistory: GenerationHistoryItem[]
     downloadAndAppendImage: (image: {
         url: string,
@@ -80,7 +81,7 @@ export const MainStore = create<{
     autoSendSendingAll: false,
     promptTemplates: [],
     selectedPromptTemplateId: '',
-    appliedPromptTemplateIds: [],
+    appliedPromptTemplateIdsByContext: {},
     generationHistory: [],
     previewImageList: [
     ],

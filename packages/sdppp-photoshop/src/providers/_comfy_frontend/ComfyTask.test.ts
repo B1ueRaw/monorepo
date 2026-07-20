@@ -39,7 +39,9 @@ vi.mock('../../tsx/App.store', () => ({
     MainStore: {
         getState: () => ({
             promptTemplates: [{ id: 'template', name: 'Template', prompt: 'injected' }],
-            appliedPromptTemplateIds: ['template'],
+            appliedPromptTemplateIdsByContext: {
+                'ComfyUI:workflow': ['template'],
+            },
         }),
     },
 }))

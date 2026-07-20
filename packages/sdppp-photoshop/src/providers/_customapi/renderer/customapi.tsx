@@ -164,6 +164,7 @@ function CustomAPIRendererForm() {
 
     const { runError, progressMessage, handleRun, handleCancel, isRunning, canCancel } = useTaskExecutor({
         selectedModel: model,
+        promptContextId: `${format}:${model}`,
         currentValues,
         getCurrentValues: () => customapiStore.getState().currentValues,
         createTask,

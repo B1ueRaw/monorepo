@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { MainStore } from '../../tsx/App.store';
 import { useUploadPasses } from './upload-pass-context';
 import { preparePromptRun } from '../../utils/promptTemplates';
+import { createPromptTemplateContextKey, getAppliedPromptTemplateIds } from '../../utils/promptTemplateContexts';
 
 export interface UseTaskExecutorOptions {
     selectedModel: string;
+    promptContextId?: string;
     currentValues: any;
     getCurrentValues?: () => any;
     createTask: (model: string, values: any) => Promise<any>;
@@ -17,6 +19,7 @@ export interface UseTaskExecutorOptions {
 
 export function useTaskExecutor({
     selectedModel,
+    promptContextId,
     currentValues,
     getCurrentValues,
     createTask,
@@ -83,7 +86,9 @@ export function useTaskExecutor({
         const liveValues = getCurrentValues ? getCurrentValues() : currentValues;
         const processedValues = beforeCreateTaskHook ? beforeCreateTaskHook(liveValues) : liveValues;
         const promptState = MainStore.getState();
-        const appliedTemplates = promptState.promptTemplates.filter(item => promptState.appliedPromptTemplateIds.includes(item.id));
+        const contextKey = createPromptTemplateContextKey(promptState.provider, promptContextId ?? selectedModel);
+        const appliedTemplateIds = getAppliedPromptTemplateIds(promptState.appliedPromptTemplateIdsByContext, contextKey);
+        const appliedTemplates = promptState.promptTemplates.filter(item => appliedTemplateIds.includes(item.id));
         // Templates are written when the user applies them. Never re-inject them while running:
         // processedValues is the visible, authoritative prompt state for this task.
         const promptRun = preparePromptRun(processedValues, currentNodes, appliedTemplates);
