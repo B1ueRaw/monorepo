@@ -10,6 +10,7 @@ import { ComfyWorkflowControlPanel } from './workflow-detail/components/ComfyWor
 import { EMPTY_OBJECT } from './workflow-detail/constants';
 import { PromptTemplateLibraryButton } from '../../../../tsx/components/PromptTemplateSelector';
 import { findPositivePromptNode } from '../../../../utils/promptTemplates';
+import { MainStore } from '../../../../tsx/App.store';
 
 // 渲染计数器
 let workflowDetailRenderCount = 0;
@@ -94,6 +95,9 @@ export function WorkflowDetail({
     widgetIndex: number,
     value: any,
   ) => {
+    if (nodeID === promptNodeId) {
+      MainStore.getState().syncAppliedPromptTemplatesForPrompt('ComfyUI', currentWorkflow, value);
+    }
     sdpppSDK.plugins.ComfyCaller.setWidgetValue({
       values: [{
         nodeID,
@@ -101,7 +105,7 @@ export function WorkflowDetail({
         value,
       }],
     });
-  }, []);
+  }, [currentWorkflow, promptNodeId]);
 
   const handleTitleChange = useCallback((nodeID: string, title: string) => {
     sdpppSDK.plugins.ComfyCaller.setNodeTitle({

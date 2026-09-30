@@ -6,7 +6,7 @@ import { WidgetableProvider, WorkflowEditApiFormat } from '@sdppp/widgetable-ui'
 import { Alert, Button, Flex, Input, Tooltip } from 'antd';
 import Link from 'antd/es/typography/Link';
 import { CircleStop, HelpCircle } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SimpleWorkflowControlPanel } from '../../_comfy_frontend/renderer/components/workflow-detail/components/SimpleWorkflowControlPanel';
 import { ModelSelector } from '../../base/components/ModelSelector';
 import '../../base/styles/workflow-controls.less';
@@ -15,6 +15,8 @@ import { useTaskExecutor } from '../../base/useTaskExecutor';
 import { WidgetablePhotoshopProvider, createImageMaskWidgetRegistry } from '../../base/widgetable-photoshop';
 import './runninghub.less';
 import { changeSelectedModel, createTask, runninghubStore } from './runninghub.store';
+import { findPositivePromptNode } from '../../../utils/promptTemplates';
+import { MainStore } from '../../../tsx/App.store';
 
 const log = sdpppSDK.logger.extend('runninghub')
 
@@ -208,6 +210,7 @@ function RunningHubRendererForm({
     const webappId = runninghubStore((state) => state.webappId);
     const runningTasks = runninghubStore((state) => state.runningTasks);
     const appName = runninghubStore((state) => state.appName);
+    const promptNodeId = useMemo(() => findPositivePromptNode(currentNodes)?.id, [currentNodes]);
 
     const { runError, progressMessage, handleRun, handleCancel, isRunning, canCancel } = useTaskExecutor({
         selectedModel: webappId,
@@ -302,6 +305,9 @@ function RunningHubRendererForm({
                 onWidgetChange={(_widgetIndex: number, value: any, fieldInfo: WidgetableNode) => {
                     const live = runninghubStore.getState().currentValues;
                     setCurrentValues({ ...live, [fieldInfo.id]: value });
+                    if (fieldInfo.id === promptNodeId) {
+                        MainStore.getState().syncAppliedPromptTemplatesForPrompt('RunningHub', webappId, value);
+                    }
                 }}
             />
         </>

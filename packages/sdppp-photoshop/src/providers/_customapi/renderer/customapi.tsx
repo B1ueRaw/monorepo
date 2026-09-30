@@ -12,6 +12,8 @@ import type { WorkflowStatusDescriptor } from '@sdppp/ui-library';
 import { SimpleWorkflowControlPanel } from '../../_comfy_frontend/renderer/components/workflow-detail/components/SimpleWorkflowControlPanel';
 import '../../base/styles/workflow-controls.less';
 import { WidgetablePhotoshopProvider, createImageMaskWidgetRegistry } from '../../base/widgetable-photoshop';
+import { findPositivePromptNode } from '../../../utils/promptTemplates';
+import { MainStore } from '../../../tsx/App.store';
 
 const log = sdpppSDK.logger.extend('customapi')
 
@@ -161,6 +163,7 @@ function CustomAPIRendererForm() {
         }
         return currentNodes;
     }, [format, model, currentNodes]);
+    const promptNodeId = useMemo(() => findPositivePromptNode(currentNodes)?.id, [currentNodes]);
 
     const { runError, progressMessage, handleRun, handleCancel, isRunning, canCancel } = useTaskExecutor({
         selectedModel: model,
@@ -226,8 +229,11 @@ function CustomAPIRendererForm() {
                 values={currentValues}
                 errors={{}}
                 onWidgetChange={(_widgetIndex: number, value: any, fieldInfo: WidgetableNode) => {
-                const live = customapiStore.getState().currentValues;
-                setCurrentValues({ ...live, [fieldInfo.id]: value });
+                    const live = customapiStore.getState().currentValues;
+                    setCurrentValues({ ...live, [fieldInfo.id]: value });
+                    if (fieldInfo.id === promptNodeId) {
+                        MainStore.getState().syncAppliedPromptTemplatesForPrompt('CustomAPI', `${format}:${model}`, value);
+                    }
                 }}
             />
         </>

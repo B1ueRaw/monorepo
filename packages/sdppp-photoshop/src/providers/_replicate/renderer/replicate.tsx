@@ -6,7 +6,7 @@ import { WidgetableProvider, WorkflowEditApiFormat } from '@sdppp/widgetable-ui'
 import { Alert, Button, Flex, Input, Tooltip } from 'antd';
 import Link from 'antd/es/typography/Link';
 import { CircleStop, HelpCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SimpleWorkflowControlPanel } from '../../_comfy_frontend/renderer/components/workflow-detail/components/SimpleWorkflowControlPanel';
 import { ModelSelector } from '../../base/components/ModelSelector';
 import '../../base/styles/workflow-controls.less';
@@ -15,6 +15,8 @@ import { useTaskExecutor } from '../../base/useTaskExecutor';
 import { WidgetablePhotoshopProvider, createImageMaskWidgetRegistry } from '../../base/widgetable-photoshop';
 import './replicate.less';
 import { changeSelectedModel, createTask, replicateStore } from './replicate.store';
+import { findPositivePromptNode } from '../../../utils/promptTemplates';
+import { MainStore } from '../../../tsx/App.store';
 
 const { Password } = Input;
 
@@ -156,6 +158,7 @@ function ReplicateRendererForm({
     const currentValues = replicateStore((state) => state.currentValues);
     const setCurrentValues = replicateStore((state) => state.setCurrentValues);
     const runningTasks = replicateStore((state) => state.runningTasks);
+    const promptNodeId = useMemo(() => findPositivePromptNode(currentNodes)?.id, [currentNodes]);
 
     const { runError, progressMessage, handleRun, handleCancel, isRunning, canCancel } = useTaskExecutor({
         selectedModel,
@@ -251,6 +254,9 @@ function ReplicateRendererForm({
                 onWidgetChange={(_widgetIndex: number, value: any, fieldInfo: WidgetableNode) => {
                     const live = replicateStore.getState().currentValues;
                     setCurrentValues({ ...live, [fieldInfo.id]: value });
+                    if (fieldInfo.id === promptNodeId) {
+                        MainStore.getState().syncAppliedPromptTemplatesForPrompt('Replicate', selectedModel, value);
+                    }
                 }}
             />
         </>

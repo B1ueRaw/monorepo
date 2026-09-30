@@ -7,7 +7,11 @@ import { createFileResourceFromExternal } from '@sdppp/resourcing/src/@sideweb/f
 import { loadRemoteConfig } from '@sdppp/vite-remote-config-loader'
 import { buildBoundaryUri } from '@sdppp/resourcing/src/resource-uris'
 import type { PromptTemplate } from '../utils/promptTemplates'
-import type { AppliedPromptTemplateIdsByContext } from '../utils/promptTemplateContexts'
+import {
+    createPromptTemplateContextKey,
+    reconcileAppliedPromptTemplateIds,
+    type AppliedPromptTemplateIdsByContext,
+} from '../utils/promptTemplateContexts'
 
 export type SendMode = 'smartobject' | 'newdoc' | 'selection';
 
@@ -56,6 +60,7 @@ export const MainStore = create<{
     promptTemplates: PromptTemplate[]
     selectedPromptTemplateId: string
     appliedPromptTemplateIdsByContext: AppliedPromptTemplateIdsByContext
+    syncAppliedPromptTemplatesForPrompt: (provider: string, contextId: string | null | undefined, prompt: unknown) => void
     generationHistory: GenerationHistoryItem[]
     downloadAndAppendImage: (image: {
         url: string,
@@ -74,7 +79,7 @@ export const MainStore = create<{
     toggleAutoSendMode: (mode: SendMode) => void
     setAutoSendSending: (sending: boolean) => void
     setAutoSendSendingAll: (sending: boolean) => void
-}>()(persist((set) => ({
+}>()(persist((set, get) => ({
     provider: '',
     autoSendMode: null,
     autoSendSending: false,
@@ -82,6 +87,19 @@ export const MainStore = create<{
     promptTemplates: [],
     selectedPromptTemplateId: '',
     appliedPromptTemplateIdsByContext: {},
+    syncAppliedPromptTemplatesForPrompt: (provider, contextId, prompt) => {
+        const state = get()
+        const contextKey = createPromptTemplateContextKey(provider, contextId)
+        const nextContexts = reconcileAppliedPromptTemplateIds(
+            state.appliedPromptTemplateIdsByContext,
+            contextKey,
+            state.promptTemplates,
+            prompt,
+        )
+        if (nextContexts !== state.appliedPromptTemplateIdsByContext) {
+            set({ appliedPromptTemplateIdsByContext: nextContexts })
+        }
+    },
     generationHistory: [],
     previewImageList: [
     ],

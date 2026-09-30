@@ -1,3 +1,5 @@
+import { filterPresentPromptTemplates, type PromptTemplate } from './promptTemplates'
+
 export type AppliedPromptTemplateIdsByContext = Record<string, string[]>
 
 const EMPTY_APPLIED_PROMPT_TEMPLATE_IDS: string[] = []
@@ -32,4 +34,20 @@ export function removePromptTemplateFromAllContexts(
         const nextIds = templateIds.filter(id => id !== templateId)
         return nextIds.length ? [[contextKey, nextIds]] : []
     }))
+}
+
+export function reconcileAppliedPromptTemplateIds(
+    contexts: AppliedPromptTemplateIdsByContext,
+    contextKey: string,
+    templates: PromptTemplate[],
+    prompt: unknown,
+): AppliedPromptTemplateIdsByContext {
+    const appliedIds = getAppliedPromptTemplateIds(contexts, contextKey)
+    if (!appliedIds.length) return contexts
+
+    const appliedTemplates = templates.filter(template => appliedIds.includes(template.id))
+    const presentIds = filterPresentPromptTemplates(prompt, appliedTemplates).map(template => template.id)
+    if (presentIds.length === appliedIds.length && presentIds.every((id, index) => id === appliedIds[index])) return contexts
+
+    return setAppliedPromptTemplateIds(contexts, contextKey, presentIds)
 }
